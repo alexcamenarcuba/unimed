@@ -1,0 +1,44 @@
+services:
+  crm-qa:
+    build:
+      context: .
+      dockerfile: .backend.dockerfile
+      args:
+        APP_UID: ${UID:-1000}
+        APP_GID: ${GID:-1000}
+    container_name: crm-qa
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./web:/var/www
+      - /var/www/vendor
+      - /var/www/node_modules
+    ports:
+      - "8000:8000"
+      - "5173:5173"
+    environment:
+        APP_ENV: local
+        APP_DEBUG: "true"
+        HOME: /tmp
+        NPM_CONFIG_CACHE: /tmp/.npm
+        COMPOSER_HOME: /tmp/.composer
+    
+
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.crm-qa.entrypoints=web"
+      - "traefik.http.routers.crm-qa.rule=Host(`crm-qa`)"
+      - "traefik.http.routers.crm-qa.service=crm-qa"
+      - "traefik.http.routers.crm-qa-vite.entrypoints=web"
+      - "traefik.http.routers.crm-qa-vite.rule=Host(`crm-qa`) && (PathPrefix(`/@vite`) || PathPrefix(`/@id`) || PathPrefix(`/resources`) || PathPrefix(`/vite-hmr`) || PathPrefix(`/node_modules`))"
+      - "traefik.http.routers.crm-qa-vite.priority=100"
+      - "traefik.http.routers.crm-qa-vite.service=crm-qa-vite"
+      - "traefik.http.services.crm-qa.loadbalancer.server.port=8000"
+      - "traefik.http.services.crm-qa-vite.loadbalancer.server.port=5173"
+      - "traefik.http.services.crm-qa.loadbalancer.responseforwarding.flushinterval=100ms"
+
+networks:
+  proxy:
+    external: true
