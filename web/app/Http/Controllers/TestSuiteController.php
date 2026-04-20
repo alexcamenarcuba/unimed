@@ -42,7 +42,7 @@ class TestSuiteController extends Controller
                 ];
             });
 
-        return Inertia::render('admin/test-orchestrator/pages/TestSuiteList', [
+        return Inertia::render('test-orchestrator/pages/TestSuiteList', [
             'suites' => $suites,
         ]);
     }
@@ -68,34 +68,41 @@ class TestSuiteController extends Controller
             : 'api_test_case_id';
 
         $latestResults = DB::table('api_test_results as r')
-            ->select("r.{$resultCaseForeignKey} as case_id", 'r.passed')
+            ->select(
+                "r.{$resultCaseForeignKey} as case_id",
+                'r.passed',
+                'r.response_body'
+            )
             ->join(
                 DB::raw("(
-                    SELECT {$resultCaseForeignKey} as case_id, MAX(created_at) as latest_created_at
-                    FROM api_test_results
-                    GROUP BY {$resultCaseForeignKey}
-                ) as lr"),
+            SELECT {$resultCaseForeignKey} as case_id, MAX(created_at) as latest_created_at
+            FROM api_test_results
+            GROUP BY {$resultCaseForeignKey}
+        ) as lr"),
                 function ($join) use ($resultCaseForeignKey) {
                     $join->on("r.{$resultCaseForeignKey}", '=', 'lr.case_id')
                         ->on('r.created_at', '=', 'lr.latest_created_at');
                 }
             )
-            ->pluck('passed', 'case_id');
+            ->get()
+            ->keyBy('case_id');
 
         $suite->setRelation('cases', $suite->cases->map(function ($case) use ($latestResults) {
-            $rawStatus = $latestResults->get($case->id);
-            $case->last_result = $rawStatus === null ? null : (bool) $rawStatus;
+            $result = $latestResults->get($case->id);
+
+            $case->last_result = $result ? (bool) $result->passed : null;
+            $case->response_body = $result->response_body ?? null;
+
             return $case;
         }));
-
-        return Inertia::render('admin/test-orchestrator/pages/TestSuiteShow', [
+        return Inertia::render('test-orchestrator/pages/TestSuiteShow', [
             'suite' => $suite
         ]);
     }
 
     public function createCase(ApiTestSuite $suite)
     {
-        return Inertia::render('admin/test-orchestrator/pages/TestCaseFormPage', [
+        return Inertia::render('test-orchestrator/pages/TestCaseFormPage', [
             'suiteId' => $suite->id,
             'testCase' => null,
         ]);
@@ -107,7 +114,7 @@ class TestSuiteController extends Controller
             abort(404);
         }
 
-        return Inertia::render('admin/test-orchestrator/pages/TestCaseFormPage', [
+        return Inertia::render('test-orchestrator/pages/TestCaseFormPage', [
             'suiteId' => $suite->id,
             'testCase' => $case,
         ]);

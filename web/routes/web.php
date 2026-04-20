@@ -4,20 +4,12 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\LoginController;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\TestSuiteController;
 use App\Http\Controllers\TestRunController;
 
 Route::get('/', function () {
     return Inertia::render('admin/Index');
-});
-
-Route::get('/teste-api', function () {
-    $response = Http::post('http://crm/api/v1/contratante/login', [
-        'nomeUsuario' => 'acubaapi',
-        'email' => 'joao@email.com',
-    ]);
-
-    return $response->json();
 });
 
 Route::prefix('test-suites')->group(function () {
@@ -31,7 +23,7 @@ Route::prefix('test-suites')->group(function () {
 });
 
 Route::prefix('test-runs')->group(function () {
-    Route::get('/{run}', [TestRunController::class, 'show']);
+    Route::get('/{run}', [TestRunController::class, 'show'])->name('test-runs.show');
 });
 
 Route::put('/test-cases/{case}', [TestSuiteController::class, 'updateCase']);

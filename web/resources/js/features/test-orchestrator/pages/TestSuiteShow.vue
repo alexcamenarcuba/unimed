@@ -1,4 +1,5 @@
 <template>
+    <AdminLayout>
     <div class="p-4">
         <!-- HEADER -->
         <div class="flex justify-between items-center mb-4">
@@ -24,9 +25,11 @@
         <!-- TABELA -->
         <TestCaseTable :cases="suite.cases" @edit="openEdit" />
     </div>
+    </AdminLayout>
 </template>
 
 <script setup>
+import AdminLayout from "../../../layouts/AdminLayout.vue";
 import { router } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import TestCaseTable from "../components/TestCaseTable.vue";

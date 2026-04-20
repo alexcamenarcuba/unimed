@@ -17,6 +17,16 @@
       </template>
     </Column>
 
+    <Column header="Response">
+      <template #body="slot">
+        <Button
+          icon="pi pi-eye"
+          text
+          @click="showJson(slot.data.response_body)"
+        />
+      </template>
+    </Column>
+
     <Column header="Status">
       <template #body="slot">
         <TestResultBadge :status="slot.data.last_result" />

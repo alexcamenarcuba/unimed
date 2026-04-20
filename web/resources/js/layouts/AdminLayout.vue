@@ -56,10 +56,10 @@
             </div>
 
             <nav class="p-3 space-y-1">
-                <button
+                <Link
                     v-for="item in menu"
                     :key="item.label"
-                    type="button"
+                    :href="item.href"
                     class="relative group flex items-center w-full rounded-xl p-3 text-slate-600 hover:text-slate-900 hover:bg-slate-100/90 transition-all"
                     :class="[
                         sidebarOpen || isMobile
@@ -72,18 +72,21 @@
                     >
                         <i :class="item.icon"></i>
                     </span>
+
                     <span
                         v-if="sidebarOpen || isMobile"
                         class="text-sm font-medium"
-                        >{{ item.label }}</span
                     >
+                        {{ item.label }}
+                    </span>
+
                     <span
                         v-if="!sidebarOpen && !isMobile"
                         class="absolute left-full ml-2 px-2 py-1 text-xs bg-slate-900 text-white rounded-md opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none"
                     >
                         {{ item.label }}
                     </span>
-                </button>
+                </Link>
             </nav>
 
             <div class="mt-auto p-4">
@@ -206,6 +209,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { router } from "@inertiajs/vue3";
+import { Link } from "@inertiajs/vue3";
 
 const sidebarOpen = ref(true);
 const sidebarMobileOpen = ref(false);
@@ -213,11 +217,11 @@ const isMobile = ref(false);
 
 const userMenuOpen = ref(false);
 const menu = [
-    { label: "Dashboard", icon: "pi pi-home" },
-    { label: "Usuarios", icon: "pi pi-users" },
-    { label: "Pedidos", icon: "pi pi-shopping-bag" },
-    { label: "Relatorios", icon: "pi pi-chart-line" },
-    { label: "Configuracoes", icon: "pi pi-cog" },
+    { label: "Dashboard",     icon: "pi pi-home",          href: "admin/dashboard" },
+    { label: "Usuarios",      icon: "pi pi-users",         href: "test-suites" },
+    { label: "Pedidos",       icon: "pi pi-shopping-bag" , href: "test-suites" },
+    { label: "Relatorios",    icon: "pi pi-chart-line" ,   href: "test-suites" },
+    { label: "Configuracoes", icon: "pi pi-cog" ,          href: "test-suites" },
 ];
 
 const checkScreen = () => {
