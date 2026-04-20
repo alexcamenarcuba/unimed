@@ -2,7 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-
+use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\LoginController;
 use App\Http\Controllers\TestSuiteController;
 use App\Http\Controllers\TestRunController;
 

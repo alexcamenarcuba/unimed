@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers;
 
 use Inertia\Inertia;
@@ -89,6 +90,26 @@ class TestSuiteController extends Controller
 
         return Inertia::render('admin/test-orchestrator/pages/TestSuiteShow', [
             'suite' => $suite
+        ]);
+    }
+
+    public function createCase(ApiTestSuite $suite)
+    {
+        return Inertia::render('admin/test-orchestrator/pages/TestCaseFormPage', [
+            'suiteId' => $suite->id,
+            'testCase' => null,
+        ]);
+    }
+
+    public function editCase(ApiTestSuite $suite, ApiTestCase $case)
+    {
+        if ($case->suite_id !== $suite->id) {
+            abort(404);
+        }
+
+        return Inertia::render('admin/test-orchestrator/pages/TestCaseFormPage', [
+            'suiteId' => $suite->id,
+            'testCase' => $case,
         ]);
     }
 
