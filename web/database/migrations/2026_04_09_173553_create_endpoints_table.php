@@ -11,19 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('api_test_cases', function (Blueprint $table) {
+        Schema::create('endpoints', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('endpoint_id');
-            $table->foreign('endpoint_id')
+            $table->uuid('suite_id');
+            $table->foreign('suite_id')
                 ->references('id')
-                ->on('endpoints')
+                ->on('api_test_suites')
                 ->cascadeOnDelete();
-
             $table->string('name');
-            $table->json('request_payload')->nullable();
-            $table->json('expected_response')->nullable();
-            $table->integer('expected_status');
-            $table->boolean('active')->default(true);
+            $table->string('method', 10);
+            $table->string('path');
 
             $table->timestamps();
         });
@@ -34,6 +31,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('api_test_cases');
+        Schema::dropIfExists('endpoints');
     }
 };

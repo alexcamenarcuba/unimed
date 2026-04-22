@@ -17,8 +17,13 @@ Route::get('/', function () {
 
 Route::prefix('test-suites')->group(function () {
     Route::get('/', [TestSuiteController::class, 'index']);
+    Route::get('/create', [TestSuiteController::class, 'create']);
     Route::post('/', [TestSuiteController::class, 'store']);
     Route::get('/{suite}', [TestSuiteController::class, 'show']);
+    Route::get('/{suite}/endpoints/create', [TestSuiteController::class, 'createEndpoint']);
+    Route::post('/{suite}/endpoints', [TestSuiteController::class, 'storeEndpoint']);
+    Route::get('/{suite}/endpoints/{endpoint}/edit', [TestSuiteController::class, 'editEndpoint']);
+    Route::put('/{suite}/endpoints/{endpoint}', [TestSuiteController::class, 'updateEndpoint']);
     Route::get('/{suite}/cases/create', [TestSuiteController::class, 'createCase']);
     Route::get('/{suite}/cases/{case}/edit', [TestSuiteController::class, 'editCase']);
     Route::put('/{suite}/cases/{apiCase}', [TestSuiteController::class, 'updateCase']);

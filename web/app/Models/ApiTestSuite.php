@@ -11,9 +11,9 @@ class ApiTestSuite extends Model
 
     protected $fillable = ['name', 'base_url'];
 
-    public function cases()
+    public function endpoints()
     {
-        return $this->hasMany(ApiTestCase::class, 'suite_id');
+        return $this->hasMany(Endpoint::class, 'suite_id');
     }
 
     public function runs()

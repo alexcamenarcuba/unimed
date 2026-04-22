@@ -6,24 +6,15 @@
             placeholder="Ex: Login com credenciais validas"
         />
 
-        <!-- MÉTODO + ENDPOINT + STATUS -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <BaseSelect
-                v-model="form.method"
-                label="Método"
-                :options="methods"
+                v-model="form.endpoint_id"
+                label="Endpoint"
+                :options="endpointOptions"
                 optionLabel="label"
                 optionValue="value"
-                placeholder="Selecione o método"
+                placeholder="Selecione o endpoint"
             />
-
-            <div class="md:col-span-2">
-                <BaseInputText
-                    v-model="form.endpoint"
-                    label="Endpoint"
-                    placeholder="/contratante/login"
-                />
-            </div>
 
             <div>
                 <BaseSelect
@@ -59,7 +50,7 @@
 
 <script setup>
 import axios from "axios";
-import { ref, watch, onMounted } from "vue";
+import { computed, ref, onMounted } from "vue";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import TabView from "primevue/tabview";
@@ -72,16 +63,24 @@ onMounted(() => {
 const props = defineProps({
     suiteId: [Number, String],
     testCase: Object,
+    endpoints: {
+        type: Array,
+        default: () => [],
+    },
+    initialEndpointId: {
+        type: [String, Number],
+        default: null,
+    },
 });
 
 const emit = defineEmits(["saved", "cancel"]);
 
-const methods = [
-    { label: "GET", value: "GET" },
-    { label: "POST", value: "POST" },
-    { label: "PUT", value: "PUT" },
-    { label: "DELETE", value: "DELETE" },
-];
+const endpointOptions = computed(() => {
+    return props.endpoints.map((endpoint) => ({
+        label: `${endpoint.method} ${endpoint.path} - ${endpoint.name}`,
+        value: endpoint.id,
+    }));
+});
 
 const httpStatusOptions = [
     { label: "200", value: 200 },
@@ -94,8 +93,7 @@ const httpStatusOptions = [
 
 const form = ref({
     name: "",
-    method: "POST",
-    endpoint: "",
+    endpoint_id: null,
     expected_status: 200,
     request_json: "",
     expected_json: "",
@@ -108,8 +106,7 @@ function hydrateForm() {
     if (props.testCase) {
         form.value = {
             name: props.testCase.name,
-            method: props.testCase.method,
-            endpoint: props.testCase.endpoint,
+            endpoint_id: props.testCase.endpoint_id,
             expected_status: props.testCase.expected_status ?? 200,
             request_json: JSON.stringify(
                 props.testCase.request_payload ?? {},
@@ -130,8 +127,7 @@ function hydrateForm() {
 function resetForm() {
     form.value = {
         name: "",
-        method: "POST",
-        endpoint: "",
+        endpoint_id: props.initialEndpointId,
         expected_status: 200,
         request_json: "",
         expected_json: "",
@@ -142,8 +138,7 @@ async function save() {
     try {
         const payload = {
             name: form.value.name,
-            method: form.value.method,
-            endpoint: form.value.endpoint,
+            endpoint_id: form.value.endpoint_id,
             expected_status: form.value.expected_status,
             request_json: JSON.parse(form.value.request_json || "{}"),
             expected_json: JSON.parse(form.value.expected_json || "{}"),

@@ -14,7 +14,13 @@
         </div>
 
         <!-- AÇÃO -->
-        <div class="mb-4">
+        <div class="mb-4 flex gap-2">
+            <Button
+                label="Novo Endpoint"
+                icon="pi pi-link"
+                severity="secondary"
+                @click="goToCreateEndpoint"
+            />
             <Button
                 label="Novo Cenário"
                 icon="pi pi-plus"
@@ -45,5 +51,9 @@ function openEdit(testCase) {
 
 function goToCreate() {
     router.visit(`/test-suites/${props.suite.id}/cases/create`);
+}
+
+function goToCreateEndpoint() {
+    router.visit(`/test-suites/${props.suite.id}/endpoints/create`);
 }
 </script>

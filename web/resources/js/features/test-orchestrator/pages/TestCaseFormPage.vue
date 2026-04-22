@@ -8,6 +8,8 @@
     <TestCaseForm
       :suiteId="suiteId"
       :testCase="testCase"
+      :endpoints="endpoints"
+      :initialEndpointId="initialEndpointId"
       @saved="onSaved"
       @cancel="onCancel"
     />
@@ -22,7 +24,15 @@ import AdminLayout from "../../../layouts/AdminLayout.vue";
 
 const props = defineProps({
   suiteId: [Number, String],
-  testCase: Object
+  testCase: Object,
+  endpoints: {
+    type: Array,
+    default: () => []
+  },
+  initialEndpointId: {
+    type: [String, Number],
+    default: null
+  }
 })
 
 function onSaved() {

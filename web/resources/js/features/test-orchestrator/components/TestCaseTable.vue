@@ -1,12 +1,9 @@
 <template>
   <DataTable :value="cases" stripedRows>
-
     <Column field="name" header="Nome" />
-
-    <Column field="method" header="Método" />
-
+    <Column field="expected_status" header="HttpCode Esperado" />
+    <Column field="status_received" header="HttpCode Retornado" />
     <Column field="endpoint" header="Endpoint" />
-
     <Column header="Request">
       <template #body="slot">
         <Button
@@ -16,7 +13,6 @@
         />
       </template>
     </Column>
-
     <Column header="Response">
       <template #body="slot">
         <Button
@@ -26,13 +22,11 @@
         />
       </template>
     </Column>
-
     <Column header="Status">
       <template #body="slot">
         <TestResultBadge :status="slot.data.last_result" />
       </template>
     </Column>
-
     <Column header="Ações">
       <template #body="slot">
         <div class="flex gap-2">
@@ -41,7 +35,6 @@
         </div>
       </template>
     </Column>
-
   </DataTable>
 
   <!-- MODAL JSON -->

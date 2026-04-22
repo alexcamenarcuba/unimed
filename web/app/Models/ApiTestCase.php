@@ -9,10 +9,8 @@ class ApiTestCase extends Model
 {
     use HasUuids;
     protected $fillable = [
-        'suite_id',
+        'endpoint_id',
         'name',
-        'method',
-        'endpoint',
         'request_payload',
         'expected_response',
         'expected_status',
@@ -24,8 +22,8 @@ class ApiTestCase extends Model
         'expected_response' => 'array',
     ];
  
-    public function suite()
+    public function endpoint()
     {
-        return $this->belongsTo(ApiTestSuite::class, 'suite_id');
+        return $this->belongsTo(Endpoint::class, 'endpoint_id');
     }
 }

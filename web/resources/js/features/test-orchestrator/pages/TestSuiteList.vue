@@ -6,7 +6,7 @@
           <h1 class="text-2xl font-bold">Listagem de Testes</h1>
           <p class="text-sm text-gray-500">Endpoint e status do último teste executado.</p>
         </div>
-        <Button label="Nova Suite" icon="pi pi-plus" @click="showModal = true" />
+        <Button label="Nova Suite" icon="pi pi-plus" @click="router.visit('/test-suites/create')" />
       </div>
       <DataTable :value="suites" stripedRows responsiveLayout="scroll">
         <Column field="name" header="Cenário Principal">
@@ -40,40 +40,16 @@
           </template>
         </Column>
       </DataTable>
-
-      <!-- MODAL NOVA SUITE -->
-      <Dialog v-model:visible="showModal" modal header="Nova Suite" :style="{ width: '480px' }">
-        <div class="flex flex-col gap-4 pt-2">
-          <div>
-            <label class="block mb-1 font-medium">Nome</label>
-            <InputText v-model="form.name" class="w-full" placeholder="Login Contratante" />
-          </div>
-          <div>
-            <label class="block mb-1 font-medium">Base URL</label>
-            <InputText v-model="form.base_url" class="w-full" placeholder="http://crm" />
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-between w-full">
-            <Button label="Cancelar" severity="secondary" @click="showModal = false" />
-            <Button label="Criar Suite" icon="pi pi-check" :loading="submitting" @click="submit" />
-          </div>
-        </template>
-      </Dialog>
     </div>
   </AdminLayout>
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { router } from '@inertiajs/vue3'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 import Button from 'primevue/button'
-import Dialog from 'primevue/dialog'
-import InputText from 'primevue/inputtext'
 import AdminLayout from "../../../layouts/AdminLayout.vue";
 
 defineProps({
@@ -82,19 +58,4 @@ defineProps({
     default: () => []
   }
 })
-
-const showModal = ref(false)
-const submitting = ref(false)
-const form = ref({ name: '', base_url: '' })
-
-function submit() {
-  if (!form.value.name || !form.value.base_url) return
-
-  submitting.value = true
-
-  router.post('/test-suites', form.value, {
-    onFinish: () => { submitting.value = false },
-    onError: () => { submitting.value = false },
-  })
-}
 </script>
