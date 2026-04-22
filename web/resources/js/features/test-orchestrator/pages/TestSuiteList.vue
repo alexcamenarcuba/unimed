@@ -4,13 +4,12 @@
       <div class="flex justify-between items-center mb-4">
         <div>
           <h1 class="text-2xl font-bold">Listagem de Testes</h1>
-          <p class="text-sm text-gray-500">Endpoint e status do ultimo teste executado.</p>
+          <p class="text-sm text-gray-500">Endpoint e status do último teste executado.</p>
         </div>
         <Button label="Nova Suite" icon="pi pi-plus" @click="showModal = true" />
       </div>
-
       <DataTable :value="suites" stripedRows responsiveLayout="scroll">
-        <Column field="name" header="Suite">
+        <Column field="name" header="Cenário Principal">
           <template #body="slotProps">
             <a
               class="text-primary font-medium cursor-pointer hover:underline"
@@ -18,11 +17,8 @@
             >{{ slotProps.data.name }}</a>
           </template>
         </Column>
-
         <Column field="base_url" header="Base URL" />
-
-        <Column field="cases_count" header="Cenarios" />
-
+        <Column field="cases_count" header="Cenários" />
         <Column header="Ultimo Resultado">
           <template #body="slotProps">
             <Tag

@@ -4,17 +4,17 @@ import Aura from "@primeuix/themes/aura";
 export default definePreset(Aura, {
     semantic: {
         primary: {
-            50: "#FFFDE7", // bem claro (backgrounds leves)
-            100: "#FFF9C4",
-            200: "#FFF59D",
-            300: "#FFF176",
-            400: "#FFEE58",
-            500: "#FFEB3B", // amarelo principal
-            600: "#FDD835",
-            700: "#FBC02D",
-            800: "#F9A825",
-            900: "#F57F17",
-            950: "#E6C200",
+            50: "#E6F4EE",  // bem claro
+            100: "#CCE9DD",
+            200: "#99D3BB",
+            300: "#66BD99",
+            400: "#33A777",
+            500: "#00995D", // verde principal Unimed
+            600: "#008A54",
+            700: "#007A4A",
+            800: "#006B40",
+            900: "#005C36",
+            950: "#003D24", // mais profundo
         },
         surface: {
             0: "#ffffff",
@@ -28,13 +28,13 @@ export default definePreset(Aura, {
             700: "#2C2C2C",
             800: "#1A1A1A",
             900: "#121212",
-            950: "#0A0A0A", // preto profundo (base do layout)
+            950: "#0A0A0A",
         },
         highlight: {
-            background: "#FFEB3B",
-            focusBackground: "#FDD835",
-            color: "#000000",
-            focusColor: "#000000",
+            background: "#00995D",
+            focusBackground: "#008A54",
+            color: "#ffffff",
+            focusColor: "#ffffff",
         },
     },
 });

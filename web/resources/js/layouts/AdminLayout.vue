@@ -217,11 +217,8 @@ const isMobile = ref(false);
 
 const userMenuOpen = ref(false);
 const menu = [
-    { label: "Dashboard",     icon: "pi pi-home",          href: "admin/dashboard" },
-    { label: "Usuarios",      icon: "pi pi-users",         href: "test-suites" },
-    { label: "Pedidos",       icon: "pi pi-shopping-bag" , href: "test-suites" },
-    { label: "Relatorios",    icon: "pi pi-chart-line" ,   href: "test-suites" },
-    { label: "Configuracoes", icon: "pi pi-cog" ,          href: "test-suites" },
+    { label: "Dashboard",           icon: "pi pi-home",       href: "/" },
+    { label: "Cenários de Testes",  icon: "pi pi-list-check", href: "/test-suites" },
 ];
 
 const checkScreen = () => {

@@ -23,6 +23,7 @@ class ApiTestCase extends Model
         'request_payload'  => 'array',
         'expected_response' => 'array',
     ];
+ 
     public function suite()
     {
         return $this->belongsTo(ApiTestSuite::class, 'suite_id');

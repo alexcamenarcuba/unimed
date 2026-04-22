@@ -3,7 +3,7 @@
         <BaseInputText
             v-model="form.name"
             label="Nome do teste"
-            placeholder="Ex: Login com credenciais validas"            
+            placeholder="Ex: Login com credenciais validas"
         />
 
         <!-- MÉTODO + ENDPOINT + STATUS -->
@@ -26,11 +26,12 @@
             </div>
 
             <div>
-                <label class="block mb-1 font-medium">HttpCode Esperado</label>
-                <InputText
-                    v-model.number="form.expected_status"
-                    class="w-full"
-                    placeholder="200"
+                <BaseSelect
+                    v-model="form.expected_status"
+                    label="HttpCode Esperado"
+                    :options="httpStatusOptions"
+                    optionLabel="label"
+                    optionValue="value"
                 />
             </div>
         </div>
@@ -43,22 +44,7 @@
                     v-model="form.request_json"
                     rows="8"
                     class="w-full font-mono"
-                    placeholder='{
-  "nomeUsuario": "",
-  "senha": ""
-}'
-                />
-            </TabPanel>
-
-            <!-- EXPECTED -->
-            <TabPanel header="Expected Response">
-                <Textarea
-                    v-model="form.expected_json"
-                    rows="8"
-                    class="w-full font-mono"
-                    placeholder='{
-  "success": false
-}'
+                    placeholder=''
                 />
             </TabPanel>
         </TabView>
@@ -72,32 +58,38 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
 import axios from "axios";
-import BaseInputText from "@/components/ui/BaseInputText.vue";
-import BaseSelect from "@/components/ui/BaseSelect.vue";
-
-import InputText from "primevue/inputtext";
+import { ref, watch, onMounted } from "vue";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import TabView from "primevue/tabview";
 import TabPanel from "primevue/tabpanel";
 
+onMounted(() => {
+    hydrateForm();
+});
+
 const props = defineProps({
-    modelValue: Boolean,
     suiteId: [Number, String],
     testCase: Object,
 });
 
-const emit = defineEmits(["update:modelValue", "saved", "cancel"]);
-
-const visible = ref(false);
+const emit = defineEmits(["saved", "cancel"]);
 
 const methods = [
     { label: "GET", value: "GET" },
     { label: "POST", value: "POST" },
     { label: "PUT", value: "PUT" },
     { label: "DELETE", value: "DELETE" },
+];
+
+const httpStatusOptions = [
+    { label: "200", value: 200 },
+    { label: "201", value: 201 },
+    { label: "400", value: 400 },
+    { label: "401", value: 401 },
+    { label: "404", value: 404 },
+    { label: "500", value: 500 },
 ];
 
 const form = ref({
@@ -107,24 +99,6 @@ const form = ref({
     expected_status: 200,
     request_json: "",
     expected_json: "",
-});
-
-/**
- * Sync modal open/close
- */
-watch(
-    () => props.modelValue,
-    (val) => {
-        visible.value = val;
-
-        if (val) {
-            hydrateForm();
-        }
-    },
-);
-
-watch(visible, (val) => {
-    emit("update:modelValue", val);
 });
 
 /**
@@ -153,9 +127,6 @@ function hydrateForm() {
     }
 }
 
-/**
- * Reset
- */
 function resetForm() {
     form.value = {
         name: "",
@@ -167,9 +138,6 @@ function resetForm() {
     };
 }
 
-/**
- * Salvar
- */
 async function save() {
     try {
         const payload = {
@@ -182,23 +150,18 @@ async function save() {
         };
 
         if (props.testCase) {
-            await axios.put(`/test-cases/${props.testCase.id}`, payload);
+            await axios.put( `/test-suites/${props.suiteId}/cases/${props.testCase.id}`, payload);
         } else {
             await axios.post(`/test-suites/${props.suiteId}/cases`, payload);
         }
 
         emit("saved");
-        visible.value = false;
     } catch (e) {
         alert("JSON inválido ou erro ao salvar");
     }
 }
 
-/**
- * Fechar
- */
 function close() {
     emit("cancel");
-    visible.value = false;
 }
 </script>

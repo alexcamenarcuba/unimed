@@ -13,7 +13,16 @@ import Toast from "primevue/toast";
 createInertiaApp({
     resolve: (name) => {
         const pages = import.meta.glob("./features/**/*.vue");
-        return pages[`./features/${name}.vue`]();
+
+    const page = Object.keys(pages).find(path =>
+        path.endsWith(`${name}.vue`)
+    );
+    console.log(Object.keys(pages));
+    if (!page) {
+        throw new Error(`Página não encontrada: ${name}`);
+    }
+
+    return pages[page]();
     },
 
     setup({ el, App, props, plugin }) {

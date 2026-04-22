@@ -2,14 +2,17 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\LoginController;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\TestSuiteController;
 use App\Http\Controllers\TestRunController;
 
+/*
+use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\LoginController;
+use Illuminate\Support\Facades\Auth;
+*/
+
 Route::get('/', function () {
-    return Inertia::render('admin/Index');
+    return Inertia::render('/Index');
 });
 
 Route::prefix('test-suites')->group(function () {
@@ -18,6 +21,7 @@ Route::prefix('test-suites')->group(function () {
     Route::get('/{suite}', [TestSuiteController::class, 'show']);
     Route::get('/{suite}/cases/create', [TestSuiteController::class, 'createCase']);
     Route::get('/{suite}/cases/{case}/edit', [TestSuiteController::class, 'editCase']);
+    Route::put('/{suite}/cases/{apiCase}', [TestSuiteController::class, 'updateCase']);
     Route::post('/{suite}/cases', [TestSuiteController::class, 'storeCase']);
     Route::post('/{suite}/run', [TestSuiteController::class, 'run']);
 });
@@ -26,9 +30,9 @@ Route::prefix('test-runs')->group(function () {
     Route::get('/{run}', [TestRunController::class, 'show'])->name('test-runs.show');
 });
 
-Route::put('/test-cases/{case}', [TestSuiteController::class, 'updateCase']);
-Route::delete('/test-cases/{case}', [TestSuiteController::class, 'deleteCase']);
+//Route::delete('/test-cases/{case}', [TestSuiteController::class, 'deleteCase']);
 
+/*
 Route::prefix('auth')->group(function () {
 
     Route::get('/login', fn() => Inertia::render('auth/pages/Login'))
@@ -74,3 +78,4 @@ Route::prefix('admin')->middleware('auth')->group(function () {
 Route::get('/login', function () {
     return redirect()->route('auth.login');
 })->name('login');
+*/

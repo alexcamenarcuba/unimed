@@ -1,80 +1,49 @@
 <template>
-    <BaseFormField
-        :label="label"
-        :for-id="id"
-        :error="error"
-        :hint="hint"
-        hide-label
-    >
-        <div class="float-container" :class="{ active: isActive }">
-            <Dropdown
-                :inputId="id"
+    <BaseFormField :for-id="id" :error="error" :hint="hint" :label="label">
+        <FloatLabel
+            variant="on"
+            :pt="{ label: { style: 'background-color: transparent' } }"
+        >
+            <InputText
+                :id="id"
                 v-model="value"
-                :options="options"
-                :optionLabel="optionLabel"
-                :optionValue="optionValue"
-                class="w-full"
-                @focus="focused = true"
-                @blur="focused = false"
+                :disabled="disabled"
+                :class="[
+                    'w-full',
+                    {
+                        'p-inputtext-sm': dense,
+                        'p-invalid': error,
+                    },
+                ]"
             />
-
             <label :for="id">{{ label }}</label>
-        </div>
+        </FloatLabel>
     </BaseFormField>
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
-import Dropdown from "primevue/dropdown";
+import { computed } from "vue";
+import InputText from "primevue/inputtext";
 import BaseFormField from "./BaseFormField.vue";
+import FloatLabel from "primevue/floatlabel";
 
 const props = defineProps({
-    modelValue: [String, Number, Object],
+    modelValue: String,
     label: String,
-    options: Array,
-    optionLabel: String,
-    optionValue: String,
-    id: String,
+    id: {
+        type: String,
+        default: () => `input-${Math.random().toString(36).slice(2)}`,
+    },
+    dense: Boolean,
+    disabled: Boolean,
     error: String,
     hint: String,
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const focused = ref(false);
-
 const value = computed({
     get: () => props.modelValue,
     set: (val) => emit("update:modelValue", val),
 });
-
-const isActive = computed(() => {
-    return focused.value || !!value.value;
-});
 </script>
-
-<style scoped>
-.float-container {
-    position: relative;
-}
-
-.float-container label {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: white;
-    padding: 0 4px;
-    color: #6b7280;
-    font-size: 14px;
-    pointer-events: none;
-    transition: all 0.2s ease;
-}
-
-/* estado ativo (igual input bonito) */
-.float-container.active label {
-    top: -2px;
-    font-size: 12px;
-    color: #10b981; /* verde igual seu exemplo */
-}
-</style>

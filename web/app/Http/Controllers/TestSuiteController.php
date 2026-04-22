@@ -32,7 +32,7 @@ class TestSuiteController extends Controller
                         $lastStatus = (int) $lastRun->failed === 0;
                     }
                 }
-
+            
                 return [
                     'id'          => $suite->id,
                     'name'        => $suite->name,
@@ -138,19 +138,18 @@ class TestSuiteController extends Controller
         return back();
     }
 
-    public function updateCase(Request $request, ApiTestCase $case)
+    public function updateCase(Request $request, ApiTestSuite $suite, ApiTestCase $apiCase)
     {
-        $case->update([
+        $apiCase->update([
             'name'              => $request->name,
             'method'            => $request->method,
             'endpoint'          => $request->endpoint,
             'request_payload'   => $request->request_json,
-            'expected_response' => $request->expected_json,
-            'expected_status'   => $request->expected_status ?? $case->expected_status,
+            'expected_status'   => $request->expected_status ?? $suite->expected_status,
         ]);
-
-        return back();
+        return response()->json(['success' => true]);
     }
+
 
     /**
      * Deletar cenário
