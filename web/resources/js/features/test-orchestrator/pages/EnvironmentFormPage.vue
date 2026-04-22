@@ -1,17 +1,16 @@
 <template>
   <AdminLayout>
-    <div class="p-4 max-w-2xl">
+    <div class="p-4 max-w-3xl">
       <h1 class="text-2xl font-bold mb-1">
-        {{ endpoint ? 'Editar Endpoint' : 'Novo Endpoint' }}
+        {{ environment ? 'Editar Ambiente' : 'Novo Ambiente' }}
       </h1>
       <p class="text-sm text-gray-500 mb-6">
         Suite: {{ suite.name }}
       </p>
 
-      <EndpointForm
+      <EnvironmentForm
         :suiteId="suite.id"
-        :endpoint="endpoint"
-        :environments="environments"
+        :environment="environment"
         @saved="onSaved"
         @cancel="onCancel"
       />
@@ -22,38 +21,24 @@
 <script setup>
 import { router } from '@inertiajs/vue3'
 import AdminLayout from '../../../layouts/AdminLayout.vue'
-import EndpointForm from '../components/EndpointForm.vue'
+import EnvironmentForm from '../components/EnvironmentForm.vue'
 
 const props = defineProps({
   suite: {
     type: Object,
     required: true,
   },
-  endpoint: {
+  environment: {
     type: Object,
     default: null,
   },
-  environments: {
-    type: Array,
-    default: () => [],
-  },
 })
 
-function onSaved(endpointId) {
-  if (props.endpoint) {
-    router.visit(`/test-suites/${props.suite.id}`)
-    return
-  }
-
-  router.visit(`/test-suites/${props.suite.id}/cases/create?endpoint_id=${endpointId}`)
+function onSaved() {
+  router.visit(`/test-suites/${props.suite.id}`)
 }
 
 function onCancel() {
-  if (props.endpoint) {
-    router.visit(`/test-suites/${props.suite.id}`)
-    return
-  }
-
   router.visit(`/test-suites/${props.suite.id}`)
 }
 </script>

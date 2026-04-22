@@ -1,149 +1,141 @@
 <template>
-  <div class="p-4">
-
-    <!-- HEADER -->
-    <div class="mb-4">
-      <h1 class="text-2xl font-bold">
-        Execução #{{ run.id }}
-      </h1>
-
-      <div class="flex gap-4 mt-2 text-sm text-gray-600">
-        <span><b>Suite:</b> {{ run.suite.name }}</span>
-        <span><b>Data:</b> {{ run.created_at }}</span>
-      </div>
-    </div>
-
-    <!-- RESUMO -->
-    <Card class="mb-4">
-      <div class="flex justify-between items-center">
-
-        <div class="flex gap-6">
-          <div>
-            <p class="text-sm text-gray-500">Total</p>
-            <p class="text-xl font-bold">{{ run.results.length }}</p>
-          </div>
-
-          <div>
-            <p class="text-sm text-gray-500">Passaram</p>
-            <p class="text-xl font-bold text-green-600">
-              {{ passedCount }}
-            </p>
-          </div>
-
-          <div>
-            <p class="text-sm text-gray-500">Falharam</p>
-            <p class="text-xl font-bold text-red-600">
-              {{ failedCount }}
-            </p>
-          </div>
-        </div>
-
+  <AdminLayout>
+    <div class="p-4 flex flex-col gap-4">
+      <div class="flex items-center justify-between">
         <div>
-          <Tag
-            :severity="failedCount === 0 ? 'success' : 'danger'"
-            :value="failedCount === 0 ? 'SUCESSO' : 'FALHAS'"
-          />
+          <h1 class="text-2xl font-bold">Execucao {{ run.id }}</h1>
+          <p class="text-sm text-gray-500">
+            Suite: {{ run.suite?.name || '-' }} | Data: {{ run.created_at }}
+          </p>
         </div>
-
+        <Button label="Voltar ao Dashboard" icon="pi pi-chart-line" severity="secondary" @click="router.visit('/test-runs')" />
       </div>
-    </Card>
 
-    <!-- LISTA DE RESULTADOS -->
-    <div class="flex flex-col gap-3">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card>
+          <template #content>
+            <p class="text-xs text-gray-500 mb-1">Total</p>
+            <p class="text-2xl font-bold">{{ run.results.length }}</p>
+          </template>
+        </Card>
+        <Card>
+          <template #content>
+            <p class="text-xs text-gray-500 mb-1">Passaram</p>
+            <p class="text-2xl font-bold text-green-600">{{ passedCount }}</p>
+          </template>
+        </Card>
+        <Card>
+          <template #content>
+            <p class="text-xs text-gray-500 mb-1">Falharam</p>
+            <p class="text-2xl font-bold text-red-600">{{ failedCount }}</p>
+          </template>
+        </Card>
+      </div>
 
-      <Card
-        v-for="result in run.results"
-        :key="result.id"
-        class="cursor-pointer hover:shadow-md transition"
-        @click="openDetail(result)"
-      >
-        <div class="flex justify-between items-center">
-
-          <div>
-            <p class="font-medium">
-              {{ result.test_case.name }}
-            </p>
-
-            <p class="text-sm text-gray-500">
-              {{ result.test_case.method }}
-              {{ result.test_case.endpoint }}
-            </p>
-          </div>
-
-          <TestResultBadge :status="result.passed" />
-
-        </div>
+      <Card>
+        <template #title>Resultados</template>
+        <template #content>
+          <DataTable :value="run.results" stripedRows responsiveLayout="scroll">
+            <Column field="test_case.name" header="Cenario" />
+            <Column header="Endpoint">
+              <template #body="slotProps">
+                {{ slotProps.data.test_case.endpoint?.method || '-' }} {{ slotProps.data.test_case.endpoint?.path || '-' }}
+              </template>
+            </Column>
+            <Column header="Ambiente">
+              <template #body="slotProps">
+                {{ slotProps.data.environment?.name || 'Base URL da Suite' }}
+              </template>
+            </Column>
+            <Column field="variant_name" header="Variante" />
+            <Column field="status_received" header="HTTP" />
+            <Column header="Status">
+              <template #body="slotProps">
+                <Tag
+                  :severity="slotProps.data.passed ? 'success' : 'danger'"
+                  :value="slotProps.data.passed ? 'PASSOU' : 'FALHOU'"
+                />
+              </template>
+            </Column>
+            <Column header="Detalhes">
+              <template #body="slotProps">
+                <Button icon="pi pi-eye" text @click="openDetail(slotProps.data)" />
+              </template>
+            </Column>
+          </DataTable>
+        </template>
       </Card>
 
-    </div>
+      <Dialog
+        v-model:visible="detailVisible"
+        header="Detalhes da Execucao"
+        :style="{ width: '900px' }"
+        modal
+      >
+        <div v-if="selectedResult" class="flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-semibold text-lg">{{ selectedResult.test_case?.name }}</h3>
+              <p class="text-sm text-gray-500">
+                {{ selectedResult.test_case?.endpoint?.method || '-' }} {{ selectedResult.test_case?.endpoint?.path || '-' }}
+                | Ambiente: {{ selectedResult.environment?.name || 'Base URL da Suite' }}
+              </p>
+            </div>
+            <Tag
+              :severity="selectedResult.passed ? 'success' : 'danger'"
+              :value="selectedResult.passed ? 'PASSOU' : 'FALHOU'"
+            />
+          </div>
 
-    <!-- MODAL DETALHE -->
-    <Dialog
-      v-model:visible="detailVisible"
-      header="Detalhes do Teste"
-      :style="{ width: '800px' }"
-      modal
-    >
-
-      <div v-if="selectedResult">
-
-        <div class="mb-3">
-          <h3 class="font-bold text-lg">
-            {{ selectedResult.test_case.name }}
-          </h3>
-
-          <TestResultBadge :status="selectedResult.passed" />
+          <TabView>
+            <TabPanel header="Request Esperado">
+              <JsonViewer :data="selectedResult.test_case?.request_payload" />
+            </TabPanel>
+            <TabPanel header="Response Recebido">
+              <JsonViewer :data="selectedResult.response_body" />
+            </TabPanel>
+            <TabPanel header="Expected Response">
+              <JsonViewer :data="selectedResult.test_case?.expected_response" />
+            </TabPanel>
+          </TabView>
         </div>
-
-        <TabView>
-
-          <TabPanel header="Request">
-            <JsonViewer :data="selectedResult.request" />
-          </TabPanel>
-
-          <TabPanel header="Response">
-            <JsonViewer :data="selectedResult.response" />
-          </TabPanel>
-
-          <TabPanel header="Expected">
-            <JsonViewer :data="selectedResult.expected" />
-          </TabPanel>
-
-        </TabView>
-
-      </div>
-
-    </Dialog>
-
-  </div>
+      </Dialog>
+    </div>
+  </AdminLayout>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import TestResultBadge from '../components/TestResultBadge.vue'
+import { computed, ref } from 'vue'
+import { router } from '@inertiajs/vue3'
+import AdminLayout from '../../../layouts/AdminLayout.vue'
+import Card from 'primevue/card'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
+import Tag from 'primevue/tag'
+import Button from 'primevue/button'
+import Dialog from 'primevue/dialog'
+import TabView from 'primevue/tabview'
+import TabPanel from 'primevue/tabpanel'
 import JsonViewer from '../components/JsonViewer.vue'
 
 const props = defineProps({
-  run: Object
+  run: {
+    type: Object,
+    required: true,
+  }
 })
 
 const detailVisible = ref(false)
 const selectedResult = ref(null)
 
-/**
- * Contadores
- */
 const passedCount = computed(() =>
-  props.run.results.filter(r => r.passed).length
+  props.run.results.filter((r) => r.passed).length
 )
 
 const failedCount = computed(() =>
-  props.run.results.filter(r => !r.passed).length
+  props.run.results.filter((r) => !r.passed).length
 )
 
-/**
- * Abrir detalhe
- */
 function openDetail(result) {
   selectedResult.value = result
   detailVisible.value = true

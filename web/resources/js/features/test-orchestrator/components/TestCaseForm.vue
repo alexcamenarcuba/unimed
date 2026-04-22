@@ -31,6 +31,27 @@
         <TabView>
             <!-- REQUEST -->
             <TabPanel header="Request">
+                <div
+                    v-if="selectedEndpointVariableKeys.length"
+                    class="mb-3 border rounded-md p-3 flex flex-col gap-2"
+                >
+                    <p class="text-sm font-medium">Variáveis disponíveis do endpoint</p>
+                    <p class="text-xs text-gray-500">
+                        Clique para inserir no JSON como placeholder no formato
+                        <code v-pre>{{chave}}</code>.
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        <Button
+                            v-for="variableKey in selectedEndpointVariableKeys"
+                            :key="variableKey"
+                            size="small"
+                            severity="secondary"
+                            :label="'{{' + variableKey + '}}'"
+                            @click="insertVariablePlaceholder(variableKey)"
+                        />
+                    </div>
+                </div>
+
                 <Textarea
                     v-model="form.request_json"
                     rows="8"
@@ -80,6 +101,18 @@ const endpointOptions = computed(() => {
         label: `${endpoint.method} ${endpoint.path} - ${endpoint.name}`,
         value: endpoint.id,
     }));
+});
+
+const selectedEndpoint = computed(() => {
+    return props.endpoints.find((item) => item.id === form.value.endpoint_id) ?? null;
+});
+
+const selectedEndpointVariableKeys = computed(() => {
+    const variables = selectedEndpoint.value?.variables ?? [];
+
+    return variables
+        .map((item) => item?.key)
+        .filter((key) => Boolean(key));
 });
 
 const httpStatusOptions = [
@@ -132,6 +165,24 @@ function resetForm() {
         request_json: "",
         expected_json: "",
     };
+}
+
+function insertVariablePlaceholder(variableKey) {
+    const placeholder = `{{${variableKey}}}`;
+
+    try {
+        const requestObject = JSON.parse(form.value.request_json || "{}");
+
+        if (!requestObject || Array.isArray(requestObject) || typeof requestObject !== "object") {
+            alert("O request precisa ser um JSON objeto para inserir placeholders automaticamente.");
+            return;
+        }
+
+        requestObject[variableKey] = placeholder;
+        form.value.request_json = JSON.stringify(requestObject, null, 2);
+    } catch (e) {
+        alert("JSON do request inválido. Corrija o JSON para inserir placeholders automaticamente.");
+    }
 }
 
 async function save() {

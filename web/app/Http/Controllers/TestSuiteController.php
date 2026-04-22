@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Models\ApiTestSuite;
 use App\Models\ApiTestCase;
+use App\Models\ApiTestEnvironment;
 use App\Models\Endpoint;
 use App\Services\TestRunnerService;
 use Illuminate\Http\Request;
@@ -16,14 +17,27 @@ class TestSuiteController extends Controller
 {
     public function create()
     {
-        return Inertia::render('test-orchestrator/pages/TestSuiteFormPage');
+        return Inertia::render('test-orchestrator/pages/TestSuiteFormPage', [
+            'suite' => null,
+        ]);
+    }
+
+    public function edit(ApiTestSuite $suite)
+    {
+        return Inertia::render('test-orchestrator/pages/TestSuiteFormPage', [
+            'suite' => [
+                'id' => $suite->id,
+                'name' => $suite->name,
+                'base_url' => $suite->base_url,
+            ],
+        ]);
     }
 
     public function index()
     {
         $hasSuiteId = Schema::hasColumn('api_test_runs', 'suite_id');
 
-        $suites = ApiTestSuite::with('endpoints.testCases')
+        $suites = ApiTestSuite::with('endpoints.testCases', 'environments')
             ->latest()
             ->get()
             ->map(function ($suite) use ($hasSuiteId) {
@@ -48,7 +62,8 @@ class TestSuiteController extends Controller
                 return [
                     'id'          => $suite->id,
                     'name'        => $suite->name,
-                    'base_url'    => $suite->base_url,
+                    'base_url'    => $suite->environments->first()->base_url ?? $suite->base_url,
+                    'environments_count' => $suite->environments->count(),
                     'cases_count' => $casesCount,
                     'last_status' => $lastStatus,
                 ];
@@ -61,6 +76,40 @@ class TestSuiteController extends Controller
 
     public function store(Request $request)
     {
+        if ($request->has('environments')) {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'base_path' => 'nullable|string|max:255',
+                'environments' => 'required|array|min:1',
+                'environments.*.name' => 'required|string|max:255',
+                'environments.*.url' => 'required|string|max:500',
+            ]);
+
+            $basePath = $validated['base_path'] ?? '';
+            $firstEnvironment = $validated['environments'][0];
+            $suiteBaseUrl = $this->buildEnvironmentBaseUrl($firstEnvironment['url'], $basePath);
+
+            $suite = ApiTestSuite::create([
+                'name' => $validated['name'],
+                'base_url' => $suiteBaseUrl,
+            ]);
+
+            foreach ($validated['environments'] as $environmentPayload) {
+                $suite->environments()->create([
+                    'name' => $environmentPayload['name'],
+                    'base_url' => $this->buildEnvironmentBaseUrl($environmentPayload['url'], $basePath),
+                    'is_active' => true,
+                    'requires_auth' => false,
+                    'auth_login_method' => 'POST',
+                    'auth_token_path' => 'token',
+                    'auth_validate_method' => 'GET',
+                    'auth_validate_status' => 200,
+                ]);
+            }
+
+            return redirect("/test-suites/{$suite->id}/endpoints/create");
+        }
+
         $validated = $request->validate([
             'name'     => 'required|string|max:255',
             'base_url' => 'required|string|max:500',
@@ -68,12 +117,167 @@ class TestSuiteController extends Controller
 
         $suite = ApiTestSuite::create($validated);
 
-        return redirect("/test-suites/{$suite->id}/endpoints/create");
+        $suite->environments()->create([
+            'name' => 'Principal',
+            'base_url' => $validated['base_url'],
+            'is_active' => true,
+            'requires_auth' => false,
+            'auth_login_method' => 'POST',
+            'auth_token_path' => 'token',
+            'auth_validate_method' => 'GET',
+            'auth_validate_status' => 200,
+        ]);
+
+        return redirect("/test-suites/{$suite->id}/environments/create");
+    }
+
+    public function update(Request $request, ApiTestSuite $suite)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'base_url' => 'required|string|max:500',
+        ]);
+
+        $suite->update($validated);
+
+        return redirect("/test-suites/{$suite->id}");
+    }
+
+    public function createEnvironment(ApiTestSuite $suite)
+    {
+        return Inertia::render('test-orchestrator/pages/EnvironmentFormPage', [
+            'suite' => [
+                'id' => $suite->id,
+                'name' => $suite->name,
+                'base_url' => $suite->base_url,
+            ],
+            'environment' => null,
+        ]);
+    }
+
+    public function storeEnvironment(Request $request, ApiTestSuite $suite)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'base_url' => 'required|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'requires_auth' => 'nullable|boolean',
+            'bearer_token' => 'nullable|string|max:4096',
+            'auth_login_path' => 'nullable|string|max:255',
+            'auth_login_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
+            'auth_payload' => 'nullable|array',
+            'auth_token_path' => 'nullable|string|max:255',
+            'auth_validate_path' => 'nullable|string|max:255',
+            'auth_validate_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
+            'auth_validate_status' => 'nullable|integer|min:100|max:599',
+        ]);
+
+        $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
+        $validated['requires_auth'] = (bool) ($validated['requires_auth'] ?? false);
+        $validated['auth_login_method'] = $validated['auth_login_method'] ?? 'POST';
+        $validated['auth_token_path'] = $validated['auth_token_path'] ?? 'token';
+        $validated['auth_validate_method'] = $validated['auth_validate_method'] ?? 'GET';
+        $validated['auth_validate_status'] = $validated['auth_validate_status'] ?? 200;
+
+        if (
+            $validated['requires_auth']
+            && empty($validated['bearer_token'])
+            && empty($validated['auth_login_path'])
+        ) {
+            throw ValidationException::withMessages([
+                'auth_login_path' => 'Informe um endpoint de login ou um bearer token inicial.',
+            ]);
+        }
+
+        $environment = $suite->environments()->create($validated);
+
+        return response()->json([
+            'success' => true,
+            'environment_id' => $environment->id,
+        ]);
+    }
+
+    public function editEnvironment(ApiTestSuite $suite, ApiTestEnvironment $environment)
+    {
+        if ($environment->suite_id !== $suite->id) {
+            abort(404);
+        }
+
+        return Inertia::render('test-orchestrator/pages/EnvironmentFormPage', [
+            'suite' => [
+                'id' => $suite->id,
+                'name' => $suite->name,
+                'base_url' => $suite->base_url,
+            ],
+            'environment' => [
+                'id' => $environment->id,
+                'name' => $environment->name,
+                'base_url' => $environment->base_url,
+                'is_active' => (bool) $environment->is_active,
+                'requires_auth' => (bool) $environment->requires_auth,
+                'has_bearer_token' => !empty($environment->bearer_token),
+                'auth_login_path' => $environment->auth_login_path,
+                'auth_login_method' => $environment->auth_login_method,
+                'auth_payload' => $environment->auth_payload,
+                'auth_token_path' => $environment->auth_token_path,
+                'auth_validate_path' => $environment->auth_validate_path,
+                'auth_validate_method' => $environment->auth_validate_method,
+                'auth_validate_status' => $environment->auth_validate_status,
+            ],
+        ]);
+    }
+
+    public function updateEnvironment(Request $request, ApiTestSuite $suite, ApiTestEnvironment $environment)
+    {
+        if ($environment->suite_id !== $suite->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'base_url' => 'required|string|max:500',
+            'is_active' => 'nullable|boolean',
+            'requires_auth' => 'nullable|boolean',
+            'bearer_token' => 'nullable|string|max:4096',
+            'auth_login_path' => 'nullable|string|max:255',
+            'auth_login_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
+            'auth_payload' => 'nullable|array',
+            'auth_token_path' => 'nullable|string|max:255',
+            'auth_validate_path' => 'nullable|string|max:255',
+            'auth_validate_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
+            'auth_validate_status' => 'nullable|integer|min:100|max:599',
+        ]);
+
+        $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
+        $validated['requires_auth'] = (bool) ($validated['requires_auth'] ?? false);
+        $validated['auth_login_method'] = $validated['auth_login_method'] ?? 'POST';
+        $validated['auth_token_path'] = $validated['auth_token_path'] ?? 'token';
+        $validated['auth_validate_method'] = $validated['auth_validate_method'] ?? 'GET';
+        $validated['auth_validate_status'] = $validated['auth_validate_status'] ?? 200;
+
+        if (!$request->filled('bearer_token')) {
+            unset($validated['bearer_token']);
+        }
+
+        if (
+            $validated['requires_auth']
+            && empty($validated['bearer_token'])
+            && empty($environment->bearer_token)
+            && empty($validated['auth_login_path'])
+        ) {
+            throw ValidationException::withMessages([
+                'auth_login_path' => 'Informe um endpoint de login ou um bearer token inicial.',
+            ]);
+        }
+
+        $environment->update($validated);
+
+        return response()->json(['success' => true]);
     }
 
     public function show(ApiTestSuite $suite)
     {
-        $suite->load('endpoints.testCases');
+        $suite->load('endpoints.testCases', 'environments');
 
         $resultCaseForeignKey = Schema::hasColumn('api_test_results', 'test_case_id')
             ? 'test_case_id'
@@ -119,7 +323,16 @@ class TestSuiteController extends Controller
             ->values());
 
         return Inertia::render('test-orchestrator/pages/TestSuiteShow', [
-            'suite' => $suite
+            'suite' => $suite,
+            'environments' => $suite->environments()
+                ->orderBy('created_at')
+                ->get([
+                    'id',
+                    'name',
+                    'base_url',
+                    'is_active',
+                    'requires_auth',
+                ]),
         ]);
     }
 
@@ -130,6 +343,9 @@ class TestSuiteController extends Controller
                 'id' => $suite->id,
                 'name' => $suite->name,
             ],
+            'environments' => $suite->environments()
+                ->orderBy('created_at')
+                ->get(['id', 'name']),
             'endpoint' => null,
         ]);
     }
@@ -141,31 +357,14 @@ class TestSuiteController extends Controller
             'method' => 'required|string|max:10',
             'path' => 'required|string|max:255',
             'requires_auth' => 'nullable|boolean',
-            'bearer_token' => 'nullable|string|max:4096',
-            'auth_login_path' => 'nullable|string|max:255',
-            'auth_login_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
-            'auth_payload' => 'nullable|array',
-            'auth_token_path' => 'nullable|string|max:255',
-            'auth_validate_path' => 'nullable|string|max:255',
-            'auth_validate_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
-            'auth_validate_status' => 'nullable|integer|min:100|max:599',
+            'variables' => 'nullable|array',
+            'variables.*.key' => 'required|string|max:255',
+            'variables.*.type' => 'required|string|in:simple,array,file',
+            'variables.*.values' => 'nullable|array',
         ]);
 
         $validated['requires_auth'] = (bool) ($validated['requires_auth'] ?? false);
-        $validated['auth_login_method'] = $validated['auth_login_method'] ?? 'POST';
-        $validated['auth_token_path'] = $validated['auth_token_path'] ?? 'token';
-        $validated['auth_validate_method'] = $validated['auth_validate_method'] ?? 'GET';
-        $validated['auth_validate_status'] = $validated['auth_validate_status'] ?? 200;
-
-        if (
-            $validated['requires_auth']
-            && empty($validated['bearer_token'])
-            && empty($validated['auth_login_path'])
-        ) {
-            throw ValidationException::withMessages([
-                'auth_login_path' => 'Informe um endpoint de login ou um bearer token inicial.',
-            ]);
-        }
+        $validated['variables'] = array_values($validated['variables'] ?? []);
 
         $endpoint = $suite->endpoints()->create($validated);
 
@@ -186,20 +385,16 @@ class TestSuiteController extends Controller
                 'id' => $suite->id,
                 'name' => $suite->name,
             ],
+            'environments' => $suite->environments()
+                ->orderBy('created_at')
+                ->get(['id', 'name']),
             'endpoint' => [
                 'id' => $endpoint->id,
                 'name' => $endpoint->name,
                 'method' => $endpoint->method,
                 'path' => $endpoint->path,
                 'requires_auth' => (bool) $endpoint->requires_auth,
-                'has_bearer_token' => !empty($endpoint->bearer_token),
-                'auth_login_path' => $endpoint->auth_login_path,
-                'auth_login_method' => $endpoint->auth_login_method,
-                'auth_payload' => $endpoint->auth_payload,
-                'auth_token_path' => $endpoint->auth_token_path,
-                'auth_validate_path' => $endpoint->auth_validate_path,
-                'auth_validate_method' => $endpoint->auth_validate_method,
-                'auth_validate_status' => $endpoint->auth_validate_status,
+                'variables' => $endpoint->variables ?? [],
             ],
         ]);
     }
@@ -215,36 +410,14 @@ class TestSuiteController extends Controller
             'method' => 'required|string|max:10',
             'path' => 'required|string|max:255',
             'requires_auth' => 'nullable|boolean',
-            'bearer_token' => 'nullable|string|max:4096',
-            'auth_login_path' => 'nullable|string|max:255',
-            'auth_login_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
-            'auth_payload' => 'nullable|array',
-            'auth_token_path' => 'nullable|string|max:255',
-            'auth_validate_path' => 'nullable|string|max:255',
-            'auth_validate_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
-            'auth_validate_status' => 'nullable|integer|min:100|max:599',
+            'variables' => 'nullable|array',
+            'variables.*.key' => 'required|string|max:255',
+            'variables.*.type' => 'required|string|in:simple,array,file',
+            'variables.*.values' => 'nullable|array',
         ]);
 
         $validated['requires_auth'] = (bool) ($validated['requires_auth'] ?? false);
-        $validated['auth_login_method'] = $validated['auth_login_method'] ?? 'POST';
-        $validated['auth_token_path'] = $validated['auth_token_path'] ?? 'token';
-        $validated['auth_validate_method'] = $validated['auth_validate_method'] ?? 'GET';
-        $validated['auth_validate_status'] = $validated['auth_validate_status'] ?? 200;
-
-        if (!$request->filled('bearer_token')) {
-            unset($validated['bearer_token']);
-        }
-
-        if (
-            $validated['requires_auth']
-            && empty($validated['bearer_token'])
-            && empty($endpoint->bearer_token)
-            && empty($validated['auth_login_path'])
-        ) {
-            throw ValidationException::withMessages([
-                'auth_login_path' => 'Informe um endpoint de login ou um bearer token inicial.',
-            ]);
-        }
+        $validated['variables'] = array_values($validated['variables'] ?? []);
 
         $endpoint->update($validated);
 
@@ -258,7 +431,7 @@ class TestSuiteController extends Controller
             'testCase' => null,
             'endpoints' => $suite->endpoints()
                 ->orderBy('created_at')
-                ->get(['id', 'name', 'method', 'path']),
+                ->get(['id', 'name', 'method', 'path', 'variables']),
             'initialEndpointId' => request()->query('endpoint_id'),
         ]);
     }
@@ -274,7 +447,7 @@ class TestSuiteController extends Controller
             'testCase' => $case,
             'endpoints' => $suite->endpoints()
                 ->orderBy('created_at')
-                ->get(['id', 'name', 'method', 'path']),
+                ->get(['id', 'name', 'method', 'path', 'variables']),
             'initialEndpointId' => null,
         ]);
     }
@@ -344,5 +517,17 @@ class TestSuiteController extends Controller
         $run = $runner->runSuite($suite);
 
         return redirect("/test-runs/{$run->id}");
+    }
+
+    private function buildEnvironmentBaseUrl(string $url, string $basePath): string
+    {
+        $normalizedUrl = rtrim($url, '/');
+        $normalizedBasePath = trim($basePath);
+
+        if ($normalizedBasePath === '') {
+            return $normalizedUrl;
+        }
+
+        return $normalizedUrl . '/' . ltrim($normalizedBasePath, '/');
     }
 }

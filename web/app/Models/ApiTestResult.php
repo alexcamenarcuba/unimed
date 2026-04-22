@@ -12,6 +12,8 @@ class ApiTestResult extends Model
     protected $fillable = [
         'run_id',
         'test_case_id',
+        'environment_id',
+        'variant_name',
         'passed',
         'status_received',
         'response_body',
@@ -31,6 +33,11 @@ class ApiTestResult extends Model
 
     public function run()
     {
-        return $this->belongsTo(ApiTestRun::class, 'api_test_run_id');
+        return $this->belongsTo(ApiTestRun::class, 'run_id');
+    }
+
+    public function environment()
+    {
+        return $this->belongsTo(ApiTestEnvironment::class, 'environment_id');
     }
 }

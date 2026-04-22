@@ -16,6 +16,11 @@ class ApiTestSuite extends Model
         return $this->hasMany(Endpoint::class, 'suite_id');
     }
 
+    public function environments()
+    {
+        return $this->hasMany(ApiTestEnvironment::class, 'suite_id');
+    }
+
     public function runs()
     {
         return $this->hasMany(ApiTestRun::class, 'suite_id');

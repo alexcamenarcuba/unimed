@@ -6,7 +6,15 @@
           <h1 class="text-2xl font-bold">Listagem de Testes</h1>
           <p class="text-sm text-gray-500">Endpoint e status do último teste executado.</p>
         </div>
-        <Button label="Nova Suite" icon="pi pi-plus" @click="router.visit('/test-suites/create')" />
+        <div class="flex gap-2">
+          <Button
+            label="Histórico"
+            icon="pi pi-chart-line"
+            severity="secondary"
+            @click="router.visit('/test-runs')"
+          />
+          <Button label="Nova Suite" icon="pi pi-plus" @click="router.visit('/test-suites/create')" />
+        </div>
       </div>
       <DataTable :value="suites" stripedRows responsiveLayout="scroll">
         <Column field="name" header="Cenário Principal">
@@ -18,6 +26,7 @@
           </template>
         </Column>
         <Column field="base_url" header="Base URL" />
+        <Column field="environments_count" header="Ambientes" />
         <Column field="cases_count" header="Cenários" />
         <Column header="Ultimo Resultado">
           <template #body="slotProps">
@@ -30,13 +39,23 @@
           </template>
         </Column>
 
-        <Column header="">
+        <Column header="Ações">
           <template #body="slotProps">
-            <Button
-              icon="pi pi-arrow-right"
-              text
-              @click="router.visit(`/test-suites/${slotProps.data.id}`)"
-            />
+            <div class="flex items-center gap-1">
+              <Button
+                icon="pi pi-pencil"
+                text
+                rounded
+                severity="secondary"
+                @click="router.visit(`/test-suites/${slotProps.data.id}/edit`)"
+              />
+              <Button
+                icon="pi pi-arrow-right"
+                text
+                rounded
+                @click="router.visit(`/test-suites/${slotProps.data.id}`)"
+              />
+            </div>
           </template>
         </Column>
       </DataTable>

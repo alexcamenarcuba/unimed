@@ -19,7 +19,13 @@ Route::prefix('test-suites')->group(function () {
     Route::get('/', [TestSuiteController::class, 'index']);
     Route::get('/create', [TestSuiteController::class, 'create']);
     Route::post('/', [TestSuiteController::class, 'store']);
+    Route::get('/{suite}/edit', [TestSuiteController::class, 'edit']);
+    Route::put('/{suite}', [TestSuiteController::class, 'update']);
     Route::get('/{suite}', [TestSuiteController::class, 'show']);
+    Route::get('/{suite}/environments/create', [TestSuiteController::class, 'createEnvironment']);
+    Route::post('/{suite}/environments', [TestSuiteController::class, 'storeEnvironment']);
+    Route::get('/{suite}/environments/{environment}/edit', [TestSuiteController::class, 'editEnvironment']);
+    Route::put('/{suite}/environments/{environment}', [TestSuiteController::class, 'updateEnvironment']);
     Route::get('/{suite}/endpoints/create', [TestSuiteController::class, 'createEndpoint']);
     Route::post('/{suite}/endpoints', [TestSuiteController::class, 'storeEndpoint']);
     Route::get('/{suite}/endpoints/{endpoint}/edit', [TestSuiteController::class, 'editEndpoint']);
@@ -32,6 +38,7 @@ Route::prefix('test-suites')->group(function () {
 });
 
 Route::prefix('test-runs')->group(function () {
+    Route::get('/', [TestRunController::class, 'index'])->name('test-runs.index');
     Route::get('/{run}', [TestRunController::class, 'show'])->name('test-runs.show');
 });
 

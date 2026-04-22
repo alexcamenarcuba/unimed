@@ -2,20 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
-class Endpoint extends Model
+class ApiTestEnvironment extends Model
 {
     use HasUuids;
 
     protected $fillable = [
         'suite_id',
         'name',
-        'method',
-        'path',
+        'base_url',
+        'is_active',
         'requires_auth',
-        'variables',
         'bearer_token',
         'bearer_token_expires_at',
         'auth_login_path',
@@ -28,11 +27,11 @@ class Endpoint extends Model
     ];
 
     protected $casts = [
+        'is_active' => 'boolean',
         'requires_auth' => 'boolean',
         'bearer_token' => 'encrypted',
         'bearer_token_expires_at' => 'datetime',
         'auth_payload' => 'array',
-        'variables' => 'array',
     ];
 
     protected $hidden = [
@@ -44,8 +43,8 @@ class Endpoint extends Model
         return $this->belongsTo(ApiTestSuite::class, 'suite_id');
     }
 
-    public function testCases()
+    public function results()
     {
-        return $this->hasMany(ApiTestCase::class, 'endpoint_id');
+        return $this->hasMany(ApiTestResult::class, 'environment_id');
     }
 }
