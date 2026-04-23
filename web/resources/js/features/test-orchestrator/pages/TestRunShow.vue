@@ -89,6 +89,10 @@
 
           <TabView>
             <TabPanel header="Request Enviado">
+              <div class="mb-3 flex items-center gap-2 font-mono text-sm bg-gray-100 rounded px-3 py-2">
+                <span class="font-bold text-blue-700">{{ selectedResult.test_case?.endpoint?.method || '-' }}</span>
+                <span class="text-gray-700 break-all">{{ getFullUrl(selectedResult) }}</span>
+              </div>
               <JsonViewer :data="getSentRequestPayload(selectedResult)" />
             </TabPanel>
             <TabPanel header="Response Recebido">
@@ -149,5 +153,12 @@ function getSentRequestPayload(result) {
   return {
     message: 'Request enviado nao foi armazenado nesta execucao. Rode novamente para capturar este dado.',
   }
+}
+
+function getFullUrl(result) {
+  const baseUrl = result?.environment?.base_url?.replace(/\/$/, '') ?? ''
+  const path = result?.test_case?.endpoint?.path?.replace(/^\//, '') ?? ''
+  if (!baseUrl && !path) return '-'
+  return baseUrl ? `${baseUrl}/${path}` : path
 }
 </script>

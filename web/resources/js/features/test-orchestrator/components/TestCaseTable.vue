@@ -1,5 +1,21 @@
 <template>
   <DataTable :value="cases" stripedRows>
+    <Column headerStyle="width: 3rem">
+      <template #header>
+        <input
+          type="checkbox"
+          :checked="allSelected"
+          @change="toggleAllSelection($event)"
+        >
+      </template>
+      <template #body="slot">
+        <input
+          type="checkbox"
+          :checked="selectedCaseIds.includes(slot.data.id)"
+          @change="toggleCaseSelection(slot.data.id, $event)"
+        >
+      </template>
+    </Column>
     <Column field="name" header="Nome" />
     <Column field="expected_status" header="HttpCode Esperado" />
     <Column header="Endpoint">
@@ -18,11 +34,11 @@
     </Column>
     <Column header="Resultado por Ambiente">
       <template #body="slot">
-        <div class="flex flex-col gap-2 min-w-72">
+        <div class="flex flex-col gap-2">
           <div
             v-for="environmentResult in getEnvironmentResults(slot.data)"
             :key="`${slot.data.id}-${environmentResult.environment_id}`"
-            class="border rounded-md p-2"
+            class="border rounded-md p-2 min-w-48"
           >
             <div class="flex items-center justify-between gap-2">
               <p class="text-sm font-medium">{{ environmentResult.environment_name }}</p>
@@ -83,7 +99,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -100,12 +116,17 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  selectedCaseIds: {
+    type: Array,
+    default: () => [],
+  },
 })
 
-const emit = defineEmits(['edit', 'edit-endpoint'])
+const emit = defineEmits(['edit', 'edit-endpoint', 'update:selectedCaseIds'])
 
 const jsonVisible = ref(false)
 const selectedJson = ref(null)
+const allSelected = computed(() => props.cases.length > 0 && props.cases.every((testCase) => props.selectedCaseIds.includes(testCase.id)))
 
 function showJson(json) {
   selectedJson.value = json
@@ -127,5 +148,17 @@ function getEnvironmentResults(testCase) {
     response_body: null,
     executed_at: null,
   }))
+}
+
+function toggleCaseSelection(caseId, event) {
+  const nextSelectedIds = event.target.checked
+    ? [...new Set([...props.selectedCaseIds, caseId])]
+    : props.selectedCaseIds.filter((selectedId) => selectedId !== caseId)
+
+  emit('update:selectedCaseIds', nextSelectedIds)
+}
+
+function toggleAllSelection(event) {
+  emit('update:selectedCaseIds', event.target.checked ? props.cases.map((testCase) => testCase.id) : [])
 }
 </script>

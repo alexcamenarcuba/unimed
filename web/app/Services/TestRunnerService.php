@@ -1,20 +1,25 @@
-<?php 
+<?php
+
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
-use App\Models\ApiTestRun;
-use App\Models\ApiTestResult;
 use App\Models\ApiTestEnvironment;
+use App\Models\ApiTestResult;
+use App\Models\ApiTestRun;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
 
 class TestRunnerService
 {
-    public function runSuite($suite)
+    private const EMPTY_OBJECT_MARKER = '__crmqa_empty_object__';
+
+    public function runSuite($suite, array $selectedCaseIds = [])
     {
         $suite->loadMissing('endpoints.testCases', 'environments');
 
+        $selectedCaseIds = array_values(array_filter($selectedCaseIds));
+
         $run = ApiTestRun::create([
-            'suite_id'   => $suite->id,
+            'suite_id' => $suite->id,
             'started_at' => now(),
         ]);
 
@@ -36,15 +41,19 @@ class TestRunnerService
         foreach ($environments as $environment) {
             foreach ($suite->endpoints as $endpoint) {
                 foreach ($endpoint->testCases as $case) {
+                    if (!empty($selectedCaseIds) && !in_array($case->id, $selectedCaseIds, true)) {
+                        continue;
+                    }
+
                     $url = rtrim($environment->base_url, '/') . '/' . ltrim($endpoint->path, '/');
                     $requiresAuth = (bool) ($endpoint->requires_auth && $environment->requires_auth);
-
                     $requestVariants = $this->extractRequestVariants($case->request_payload);
 
                     foreach ($requestVariants as $variant) {
                         $resolvedPayload = $this->resolvePayloadVariables(
                             $variant['payload'],
                             $endpoint->variables,
+                            $case->variable_overrides,
                             (string) ($environment->id ?? '__default')
                         );
 
@@ -57,7 +66,6 @@ class TestRunnerService
                         );
 
                         $responseJson = $response->json();
-
                         $isPassed = $this->compare(
                             $response->status(),
                             $responseJson,
@@ -68,14 +76,14 @@ class TestRunnerService
                         $isPassed ? $passed++ : $failed++;
 
                         ApiTestResult::create([
-                            'run_id'          => $run->id,
-                            'test_case_id'    => $case->id,
-                            'environment_id'  => $environment->id,
-                            'variant_name'    => $variant['name'],
-                            'passed'          => $isPassed,
+                            'run_id' => $run->id,
+                            'test_case_id' => $case->id,
+                            'environment_id' => $environment->id,
+                            'variant_name' => $variant['name'],
+                            'passed' => $isPassed,
                             'status_received' => $response->status(),
                             'request_payload' => $resolvedPayload,
-                            'response_body'   => $responseJson,
+                            'response_body' => $responseJson,
                         ]);
                     }
                 }
@@ -83,18 +91,15 @@ class TestRunnerService
         }
 
         $run->update([
-            'finished_at'  => now(),
-            'total_tests'  => $passed + $failed,
-            'passed'       => $passed,
-            'failed'       => $failed,
+            'finished_at' => now(),
+            'total_tests' => $passed + $failed,
+            'passed' => $passed,
+            'failed' => $failed,
         ]);
 
         return $run;
     }
 
-    /**
-     * Comparação simples (evolui depois)
-     */
     private function compare($actualStatus, $actualBody, $expectedStatus, $expectedBody)
     {
         if ((int) $actualStatus !== (int) $expectedStatus) {
@@ -168,7 +173,6 @@ class TestRunnerService
         }
 
         if (!empty($environment->auth_login_path)) {
-            // If we cannot assert validity (no exp/validate), prefer renewing when login is available.
             return false;
         }
 
@@ -335,11 +339,71 @@ class TestRunnerService
         ]];
     }
 
-    private function resolvePayloadVariables($payload, $variables, string $environmentId)
+    private function resolvePayloadVariables($payload, $endpointVariables, $caseOverrides, string $environmentId)
     {
-        $dictionary = $this->buildVariableDictionary($variables, $environmentId);
+        $dictionary = $this->buildVariableDictionary($endpointVariables, $environmentId);
+        $resolvedCaseOverrides = $this->resolveCaseOverridesForEnvironment($caseOverrides, $environmentId);
+
+        if (!empty($resolvedCaseOverrides)) {
+            $dictionary = array_merge($dictionary, $resolvedCaseOverrides);
+        }
 
         return $this->replacePlaceholders($payload, $dictionary);
+    }
+
+    private function resolveCaseOverridesForEnvironment($caseOverrides, string $environmentId): array
+    {
+        if (!is_array($caseOverrides) || empty($caseOverrides)) {
+            return [];
+        }
+
+        if ($this->isFlatOverrideMap($caseOverrides)) {
+            return $this->normalizeCaseOverrides($caseOverrides);
+        }
+
+        $defaultOverrides = [];
+
+        if (isset($caseOverrides['__default']) && is_array($caseOverrides['__default'])) {
+            $defaultOverrides = $this->normalizeCaseOverrides($caseOverrides['__default']);
+        }
+
+        $environmentOverrides = [];
+
+        if (isset($caseOverrides[$environmentId]) && is_array($caseOverrides[$environmentId])) {
+            $environmentOverrides = $this->normalizeCaseOverrides($caseOverrides[$environmentId]);
+        }
+
+        return array_merge($defaultOverrides, $environmentOverrides);
+    }
+
+    private function normalizeCaseOverrides(array $caseOverrides): array
+    {
+        $normalized = [];
+
+        foreach ($caseOverrides as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            if (is_string($value) && trim($value) === '') {
+                continue;
+            }
+
+            $normalized[$key] = $this->restoreEmptyObjects($value);
+        }
+
+        return $normalized;
+    }
+
+    private function isFlatOverrideMap(array $overrides): bool
+    {
+        foreach ($overrides as $value) {
+            if (!is_array($value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function buildVariableDictionary($variables, string $environmentId): array
@@ -358,16 +422,39 @@ class TestRunnerService
             }
 
             if (array_key_exists($environmentId, $values)) {
-                $dictionary[$item['key']] = $values[$environmentId];
+                $dictionary[$item['key']] = $this->restoreEmptyObjects($values[$environmentId]);
                 continue;
             }
 
             if (array_key_exists('__default', $values)) {
-                $dictionary[$item['key']] = $values['__default'];
+                $dictionary[$item['key']] = $this->restoreEmptyObjects($values['__default']);
             }
         }
 
         return $dictionary;
+    }
+
+    private function restoreEmptyObjects($value)
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        if (
+            array_key_exists(self::EMPTY_OBJECT_MARKER, $value)
+            && count($value) === 1
+            && $value[self::EMPTY_OBJECT_MARKER] === true
+        ) {
+            return (object) [];
+        }
+
+        $restored = [];
+
+        foreach ($value as $key => $item) {
+            $restored[$key] = $this->restoreEmptyObjects($item);
+        }
+
+        return $restored;
     }
 
     private function replacePlaceholders($value, array $dictionary)

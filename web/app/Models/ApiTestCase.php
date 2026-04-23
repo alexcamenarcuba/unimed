@@ -12,6 +12,7 @@ class ApiTestCase extends Model
         'endpoint_id',
         'name',
         'request_payload',
+        'variable_overrides',
         'expected_response',
         'expected_status',
         'active',
@@ -19,6 +20,7 @@ class ApiTestCase extends Model
 
     protected $casts = [
         'request_payload'  => 'array',
+        'variable_overrides' => 'array',
         'expected_response' => 'array',
     ];
  

@@ -137,6 +137,8 @@ import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Textarea from 'primevue/textarea'
 
+const EMPTY_OBJECT_MARKER = '__crmqa_empty_object__'
+
 const props = defineProps({
   suiteId: {
     type: [String, Number],
@@ -186,7 +188,7 @@ function normalizeVariables(variables) {
       const envValue = values[env.id] ?? null
 
       if (item.type === 'array') {
-        valuesText[env.id] = JSON.stringify(envValue ?? [], null, 2)
+        valuesText[env.id] = JSON.stringify(unmarkEmptyObjects(envValue ?? []), null, 2)
       }
 
       if (item.type === 'file' && envValue?.name) {
@@ -202,6 +204,47 @@ function normalizeVariables(variables) {
       fileNames,
     }
   })
+}
+
+function markEmptyObjects(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => markEmptyObjects(item))
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value)
+
+    if (entries.length === 0) {
+      return {
+        [EMPTY_OBJECT_MARKER]: true,
+      }
+    }
+
+    return Object.fromEntries(entries.map(([key, item]) => [key, markEmptyObjects(item)]))
+  }
+
+  return value
+}
+
+function unmarkEmptyObjects(value) {
+  if (!Array.isArray(value) && (!value || typeof value !== 'object')) {
+    return value
+  }
+
+  if (
+    value
+    && !Array.isArray(value)
+    && Object.keys(value).length === 1
+    && value[EMPTY_OBJECT_MARKER] === true
+  ) {
+    return {}
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => unmarkEmptyObjects(item))
+  }
+
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, unmarkEmptyObjects(item)]))
 }
 
 const form = ref({
@@ -305,7 +348,7 @@ async function save() {
 
           if (item.type === 'array') {
             values[envId] = item.valuesText[envId]
-              ? JSON.parse(item.valuesText[envId])
+              ? markEmptyObjects(JSON.parse(item.valuesText[envId]))
               : []
             continue
           }

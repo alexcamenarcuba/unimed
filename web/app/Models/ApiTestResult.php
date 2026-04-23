@@ -24,7 +24,7 @@ class ApiTestResult extends Model
 
     protected $casts = [
         'passed'        => 'boolean',
-        'request_payload' => 'array',
+        'request_payload' => 'object',
         'response_body' => 'array',
     ];
 

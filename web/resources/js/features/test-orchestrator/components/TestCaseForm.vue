@@ -27,6 +27,57 @@
             </div>
         </div>
 
+        <div
+            v-if="selectedEndpointVariables.length"
+            class="border rounded-md p-3 flex flex-col gap-2"
+        >
+            <p class="text-sm font-medium">Overrides de variáveis para este cenário</p>
+            <p class="text-xs text-gray-500">
+                O valor padrao vale para todos os ambientes. Se preencher um ambiente especifico, ele sobrescreve apenas naquele sistema.
+            </p>
+
+            <div class="flex flex-col gap-3">
+                <div
+                    v-for="environment in targetEnvironments"
+                    :key="`override-env-${environment.id}`"
+                    class="border border-gray-200 rounded p-3 flex flex-col gap-3"
+                >
+                    <p class="text-xs text-gray-500">{{ environment.name }}</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <template v-for="variable in selectedEndpointVariables" :key="`override-${environment.id}-${variable.key}`">
+                            <BaseInputText
+                                v-if="variable.type === 'simple'"
+                                v-model="form.variable_overrides[environment.id][variable.key]"
+                                :label="`Variável ${variable.key}`"
+                                placeholder="Valor para este cenário"
+                            />
+
+                            <div v-else-if="variable.type === 'array'" class="flex flex-col gap-2">
+                                <label class="text-sm font-medium">Variável {{ variable.key }}</label>
+                                <Textarea
+                                    v-model="form.variable_override_json[environment.id][variable.key]"
+                                    rows="5"
+                                    class="w-full font-mono"
+                                    placeholder='{"campo": "valor"}'
+                                />
+                                <p class="text-xs text-gray-500">
+                                    Informe um JSON para sobrescrever este array/objeto neste ambiente.
+                                </p>
+                            </div>
+
+                            <div v-else class="flex flex-col justify-center">
+                                <p class="text-sm font-medium">Variável {{ variable.key }}</p>
+                                <p class="text-xs text-gray-500">
+                                    Override de arquivo por cenário ainda nao esta habilitado.
+                                </p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- TABS -->
         <TabView>
             <!-- REQUEST -->
@@ -71,11 +122,13 @@
 
 <script setup>
 import axios from "axios";
-import { computed, ref, onMounted } from "vue";
+import { computed, ref, onMounted, watch } from "vue";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import TabView from "primevue/tabview";
 import TabPanel from "primevue/tabpanel";
+
+const EMPTY_OBJECT_MARKER = "__crmqa_empty_object__";
 
 onMounted(() => {
     hydrateForm();
@@ -84,6 +137,10 @@ onMounted(() => {
 const props = defineProps({
     suiteId: [Number, String],
     testCase: Object,
+    environments: {
+        type: Array,
+        default: () => [],
+    },
     endpoints: {
         type: Array,
         default: () => [],
@@ -96,6 +153,19 @@ const props = defineProps({
 
 const emit = defineEmits(["saved", "cancel"]);
 
+const targetEnvironments = computed(() => {
+    const environments = [
+        { id: "__default", name: "Padrao para todos os ambientes" },
+        ...props.environments,
+    ];
+
+    if (environments.length > 1) {
+        return environments;
+    }
+
+    return [{ id: "__default", name: "Padrao" }];
+});
+
 const endpointOptions = computed(() => {
     return props.endpoints.map((endpoint) => ({
         label: `${endpoint.method} ${endpoint.path} - ${endpoint.name}`,
@@ -103,17 +173,33 @@ const endpointOptions = computed(() => {
     }));
 });
 
+const form = ref({
+    name: "",
+    endpoint_id: null,
+    expected_status: 200,
+    request_json: "",
+    expected_json: "",
+    variable_overrides: {},
+    variable_override_json: {},
+});
+
 const selectedEndpoint = computed(() => {
     return props.endpoints.find((item) => item.id === form.value.endpoint_id) ?? null;
 });
 
-const selectedEndpointVariableKeys = computed(() => {
-    const variables = selectedEndpoint.value?.variables ?? [];
+const selectedEndpointVariables = computed(() => {
+    return (selectedEndpoint.value?.variables ?? []).filter((item) => Boolean(item?.key));
+});
 
-    return variables
+const selectedEndpointVariableKeys = computed(() => {
+    return selectedEndpointVariables.value
         .map((item) => item?.key)
         .filter((key) => Boolean(key));
 });
+
+watch(selectedEndpointVariables, () => {
+    syncOverrideState();
+}, { deep: true });
 
 const httpStatusOptions = [
     { label: "200", value: 200 },
@@ -123,14 +209,6 @@ const httpStatusOptions = [
     { label: "404", value: 404 },
     { label: "500", value: 500 },
 ];
-
-const form = ref({
-    name: "",
-    endpoint_id: null,
-    expected_status: 200,
-    request_json: "",
-    expected_json: "",
-});
 
 /**
  * Preenche form (edição ou novo)
@@ -151,7 +229,11 @@ function hydrateForm() {
                 null,
                 2,
             ),
+            variable_overrides: normalizeVariableOverrides(props.testCase.variable_overrides ?? {}),
+            variable_override_json: {},
         };
+
+        syncOverrideState();
     } else {
         resetForm();
     }
@@ -164,7 +246,150 @@ function resetForm() {
         expected_status: 200,
         request_json: "",
         expected_json: "",
+        variable_overrides: {},
+        variable_override_json: {},
     };
+
+    syncOverrideState();
+}
+
+function normalizeVariableOverrides(overrides) {
+    if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) {
+        return {};
+    }
+
+    if (isFlatOverrideMap(overrides)) {
+        return {
+            __default: overrides,
+        };
+    }
+
+    return overrides;
+}
+
+function stringifyOverrideValue(value) {
+    const normalizedValue = unmarkEmptyObjects(value);
+
+    if (normalizedValue === null || normalizedValue === undefined || normalizedValue === "") {
+        return "";
+    }
+
+    if (typeof normalizedValue === "string") {
+        return normalizedValue;
+    }
+
+    return JSON.stringify(normalizedValue, null, 2);
+}
+
+function unmarkEmptyObjects(value) {
+    if (!Array.isArray(value) && (!value || typeof value !== "object")) {
+        return value;
+    }
+
+    if (
+        value
+        && !Array.isArray(value)
+        && Object.keys(value).length === 1
+        && value[EMPTY_OBJECT_MARKER] === true
+    ) {
+        return {};
+    }
+
+    if (Array.isArray(value)) {
+        return value.map((item) => unmarkEmptyObjects(item));
+    }
+
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, unmarkEmptyObjects(item)]));
+}
+
+function isFlatOverrideMap(overrides) {
+    return Object.values(overrides).some((value) => !Array.isArray(value) && (typeof value !== "object" || value === null));
+}
+
+function syncOverrideState() {
+    const normalizedOverrides = normalizeVariableOverrides(form.value.variable_overrides ?? {});
+    const nextOverrides = {};
+    const nextOverrideJson = {};
+
+    for (const environment of targetEnvironments.value) {
+        const environmentOverrides = normalizedOverrides[environment.id] ?? {};
+        nextOverrides[environment.id] = {};
+        nextOverrideJson[environment.id] = {};
+
+        for (const variable of selectedEndpointVariables.value) {
+            const currentValue = environmentOverrides[variable.key];
+
+            if (variable.type === "array") {
+                nextOverrides[environment.id][variable.key] = currentValue ?? null;
+                nextOverrideJson[environment.id][variable.key] = stringifyOverrideValue(currentValue);
+                continue;
+            }
+
+            nextOverrides[environment.id][variable.key] = currentValue ?? "";
+        }
+    }
+
+    form.value.variable_overrides = nextOverrides;
+    form.value.variable_override_json = nextOverrideJson;
+}
+
+function buildFilteredOverrides() {
+    const overrides = {};
+
+    for (const environment of targetEnvironments.value) {
+        const environmentOverrides = {};
+
+        for (const variable of selectedEndpointVariables.value) {
+            if (variable.type === "array") {
+                const rawValue = form.value.variable_override_json?.[environment.id]?.[variable.key] ?? "";
+
+                if (rawValue.trim() === "") {
+                    continue;
+                }
+
+                environmentOverrides[variable.key] = markEmptyObjects(JSON.parse(rawValue));
+                continue;
+            }
+
+            const value = form.value.variable_overrides?.[environment.id]?.[variable.key];
+
+            if (value === null || value === undefined) {
+                continue;
+            }
+
+            if (typeof value === "string" && value.trim() === "") {
+                continue;
+            }
+
+            environmentOverrides[variable.key] = value;
+        }
+
+        if (Object.keys(environmentOverrides).length > 0) {
+            overrides[environment.id] = environmentOverrides;
+        }
+    }
+
+    return overrides;
+}
+
+function markEmptyObjects(value) {
+    if (Array.isArray(value)) {
+        return value.map((item) => markEmptyObjects(item));
+    }
+
+    if (value && typeof value === "object") {
+        const entries = Object.entries(value);
+
+        if (entries.length === 0) {
+            return {
+                [EMPTY_OBJECT_MARKER]: true,
+            };
+        }
+
+        return Object.fromEntries(entries.map(([key, item]) => [key, markEmptyObjects(item)]));
+    }
+
+    return value;
 }
 
 function insertVariablePlaceholder(variableKey) {
@@ -187,12 +412,15 @@ function insertVariablePlaceholder(variableKey) {
 
 async function save() {
     try {
+        const filteredOverrides = buildFilteredOverrides();
+
         const payload = {
             name: form.value.name,
             endpoint_id: form.value.endpoint_id,
             expected_status: form.value.expected_status,
             request_json: JSON.parse(form.value.request_json || "{}"),
             expected_json: JSON.parse(form.value.expected_json || "{}"),
+            variable_overrides: filteredOverrides,
         };
 
         if (props.testCase) {

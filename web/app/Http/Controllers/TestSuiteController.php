@@ -462,6 +462,9 @@ class TestSuiteController extends Controller
         return Inertia::render('test-orchestrator/pages/TestCaseFormPage', [
             'suiteId' => $suite->id,
             'testCase' => null,
+            'environments' => $suite->environments()
+                ->orderBy('created_at')
+                ->get(['id', 'name']),
             'endpoints' => $suite->endpoints()
                 ->orderBy('created_at')
                 ->get(['id', 'name', 'method', 'path', 'variables']),
@@ -478,6 +481,9 @@ class TestSuiteController extends Controller
         return Inertia::render('test-orchestrator/pages/TestCaseFormPage', [
             'suiteId' => $suite->id,
             'testCase' => $case,
+            'environments' => $suite->environments()
+                ->orderBy('created_at')
+                ->get(['id', 'name']),
             'endpoints' => $suite->endpoints()
                 ->orderBy('created_at')
                 ->get(['id', 'name', 'method', 'path', 'variables']),
@@ -493,6 +499,7 @@ class TestSuiteController extends Controller
             'expected_status' => 'nullable|integer',
             'request_json' => 'nullable|array',
             'expected_json' => 'nullable|array',
+            'variable_overrides' => 'nullable|array',
         ]);
 
         $endpoint = Endpoint::where('suite_id', $suite->id)
@@ -502,6 +509,7 @@ class TestSuiteController extends Controller
         $endpoint->testCases()->create([
             'name'              => $validated['name'],
             'request_payload'   => $validated['request_json'] ?? null,
+            'variable_overrides' => $this->sanitizeVariableOverrides($validated['variable_overrides'] ?? []),
             'expected_response' => $validated['expected_json'] ?? null,
             'expected_status'   => $validated['expected_status'] ?? 200,
         ]);
@@ -521,6 +529,7 @@ class TestSuiteController extends Controller
             'expected_status' => 'nullable|integer',
             'request_json' => 'nullable|array',
             'expected_json' => 'nullable|array',
+            'variable_overrides' => 'nullable|array',
         ]);
 
         Endpoint::where('suite_id', $suite->id)
@@ -531,6 +540,7 @@ class TestSuiteController extends Controller
             'endpoint_id'       => $validated['endpoint_id'],
             'name'              => $validated['name'],
             'request_payload'   => $validated['request_json'] ?? null,
+            'variable_overrides' => $this->sanitizeVariableOverrides($validated['variable_overrides'] ?? []),
             'expected_response' => $validated['expected_json'] ?? null,
             'expected_status'   => $validated['expected_status'] ?? 200,
         ]);
@@ -547,7 +557,30 @@ class TestSuiteController extends Controller
 
     public function run(ApiTestSuite $suite, TestRunnerService $runner)
     {
-        $run = $runner->runSuite($suite);
+        $validated = request()->validate([
+            'test_case_ids' => 'nullable|array|min:1',
+            'test_case_ids.*' => 'uuid',
+        ]);
+
+        $selectedCaseIds = collect($validated['test_case_ids'] ?? [])
+            ->filter()
+            ->values();
+
+        if ($selectedCaseIds->isNotEmpty()) {
+            $validCaseIds = $suite->endpoints()
+                ->with('testCases:id,endpoint_id')
+                ->get()
+                ->flatMap(function ($endpoint) {
+                    return $endpoint->testCases->pluck('id');
+                })
+                ->intersect($selectedCaseIds)
+                ->values()
+                ->all();
+
+            $selectedCaseIds = collect($validCaseIds);
+        }
+
+        $run = $runner->runSuite($suite, $selectedCaseIds->all());
 
         return redirect("/test-runs/{$run->id}");
     }
@@ -562,5 +595,60 @@ class TestSuiteController extends Controller
         }
 
         return $normalizedUrl . '/' . ltrim($normalizedBasePath, '/');
+    }
+
+    private function sanitizeVariableOverrides(array $overrides): array
+    {
+        if ($this->isFlatOverrideMap($overrides)) {
+            return $this->sanitizeFlatOverrideMap($overrides);
+        }
+
+        $sanitized = [];
+
+        foreach ($overrides as $environmentId => $environmentOverrides) {
+            if (!is_array($environmentOverrides)) {
+                continue;
+            }
+
+            $filtered = $this->sanitizeFlatOverrideMap($environmentOverrides);
+
+            if (empty($filtered)) {
+                continue;
+            }
+
+            $sanitized[$environmentId] = $filtered;
+        }
+
+        return $sanitized;
+    }
+
+    private function sanitizeFlatOverrideMap(array $overrides): array
+    {
+        $sanitized = [];
+
+        foreach ($overrides as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            if (is_string($value) && trim($value) === '') {
+                continue;
+            }
+
+            $sanitized[$key] = $value;
+        }
+
+        return $sanitized;
+    }
+
+    private function isFlatOverrideMap(array $overrides): bool
+    {
+        foreach ($overrides as $value) {
+            if (!is_array($value)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
