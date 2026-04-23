@@ -178,17 +178,6 @@
                                     <i class="pi pi-cog"></i>
                                     <span>Account settings</span>
                                 </button>
-
-                                <div class="border-t my-2"></div>
-
-                                <button
-                                    @click="logout"
-                                    class="flex items-center gap-2 p-2 rounded hover:bg-gray-50 text-red-500"
-                                    type="button"
-                                >
-                                    <i class="pi pi-sign-out"></i>
-                                    <span>Logout</span>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -208,7 +197,6 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from "vue";
-import { router } from "@inertiajs/vue3";
 import { Link } from "@inertiajs/vue3";
 
 const sidebarOpen = ref(true);
@@ -241,10 +229,6 @@ const toggleSidebar = () => {
 
 const toggleUserMenu = () => {
     userMenuOpen.value = !userMenuOpen.value;
-};
-
-const logout = () => {
-    router.post("/logout");
 };
 
 // fechar ao clicar fora

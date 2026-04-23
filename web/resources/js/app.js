@@ -17,7 +17,6 @@ createInertiaApp({
     const page = Object.keys(pages).find(path =>
         path.endsWith(`${name}.vue`)
     );
-    console.log(Object.keys(pages));
     if (!page) {
         throw new Error(`Página não encontrada: ${name}`);
     }

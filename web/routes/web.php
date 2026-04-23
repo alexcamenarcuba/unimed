@@ -5,12 +5,6 @@ use Inertia\Inertia;
 use App\Http\Controllers\TestSuiteController;
 use App\Http\Controllers\TestRunController;
 
-/*
-use App\Http\Controllers\ForgotPasswordController;
-use App\Http\Controllers\LoginController;
-use Illuminate\Support\Facades\Auth;
-*/
-
 Route::get('/', function () {
     return Inertia::render('/Index');
 });
@@ -41,53 +35,3 @@ Route::prefix('test-runs')->group(function () {
     Route::get('/', [TestRunController::class, 'index'])->name('test-runs.index');
     Route::get('/{run}', [TestRunController::class, 'show'])->name('test-runs.show');
 });
-
-//Route::delete('/test-cases/{case}', [TestSuiteController::class, 'deleteCase']);
-
-/*
-Route::prefix('auth')->group(function () {
-
-    Route::get('/login', fn() => Inertia::render('auth/pages/Login'))
-        ->name('auth.login');
-
-    Route::post('/login', [LoginController::class, 'store'])
-        ->name('auth.login.store');
-
-    Route::get('/token', fn() => Inertia::render('auth/pages/ConfirmToken'))
-        ->name('auth.token');
-
-    Route::get('/esqueci-senha', fn() => Inertia::render('auth/pages/ForgotPassword'))
-        ->name('auth.forgot');
-
-    Route::post('/esqueci-senha', [ForgotPasswordController::class, 'sendToken'])
-        ->name('auth.send-token');
-
-    Route::get('/reset-password', [ForgotPasswordController::class, 'showResetForm'])
-        ->name('auth.reset-password');
-
-    Route::post('/reset-password', [ForgotPasswordController::class, 'resetPassword'])
-        ->name('auth.reset-password.store');
-});
-
-Route::get('/admin', function () {
-    if (Auth::check()) {
-        return redirect()->route('admin.dashboard');
-    }
-
-    return redirect()->route('auth.login');
-});
-
-Route::post('/logout', function () {
-    Auth::logout();
-    return redirect()->route('auth.login');
-})->name('auth.logout');
-
-Route::prefix('admin')->middleware('auth')->group(function () {
-    Route::get('/dashboard', fn() => Inertia::render('admin/pages/Dashboard'))
-        ->name('admin.dashboard');
-});
-
-Route::get('/login', function () {
-    return redirect()->route('auth.login');
-})->name('login');
-*/
