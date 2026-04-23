@@ -37,16 +37,7 @@ class TestRunnerService
             foreach ($suite->endpoints as $endpoint) {
                 foreach ($endpoint->testCases as $case) {
                     $url = rtrim($environment->base_url, '/') . '/' . ltrim($endpoint->path, '/');
-
-                    $http = Http::acceptJson();
-
-                    if ($endpoint->requires_auth && $environment->requires_auth) {
-                        $environmentToken = $this->resolveBearerToken($environment);
-
-                        if (!empty($environmentToken)) {
-                            $http = $http->withToken($environmentToken);
-                        }
-                    }
+                    $requiresAuth = (bool) ($endpoint->requires_auth && $environment->requires_auth);
 
                     $requestVariants = $this->extractRequestVariants($case->request_payload);
 
@@ -57,12 +48,12 @@ class TestRunnerService
                             (string) ($environment->id ?? '__default')
                         );
 
-                        $response = $http->send(
+                        $response = $this->sendRequestWithAuthRetry(
+                            $environment,
                             $endpoint->method,
                             $url,
-                            [
-                                'json' => $resolvedPayload
-                            ]
+                            $resolvedPayload,
+                            $requiresAuth
                         );
 
                         $responseJson = $response->json();
@@ -83,6 +74,7 @@ class TestRunnerService
                             'variant_name'    => $variant['name'],
                             'passed'          => $isPassed,
                             'status_received' => $response->status(),
+                            'request_payload' => $resolvedPayload,
                             'response_body'   => $responseJson,
                         ]);
                     }
@@ -175,7 +167,63 @@ class TestRunnerService
             }
         }
 
+        if (!empty($environment->auth_login_path)) {
+            // If we cannot assert validity (no exp/validate), prefer renewing when login is available.
+            return false;
+        }
+
         return true;
+    }
+
+    private function sendRequestWithAuthRetry(
+        ApiTestEnvironment $environment,
+        string $method,
+        string $url,
+        $resolvedPayload,
+        bool $requiresAuth
+    ) {
+        if (!$requiresAuth) {
+            return Http::acceptJson()->send($method, $url, ['json' => $resolvedPayload]);
+        }
+
+        $token = $this->resolveBearerToken($environment);
+
+        $http = Http::acceptJson();
+
+        if (!empty($token)) {
+            $http = $http->withToken($token);
+        }
+
+        $response = $http->send($method, $url, ['json' => $resolvedPayload]);
+
+        if ($response->status() !== 401) {
+            return $response;
+        }
+
+        $newToken = $this->forceRefreshBearerToken($environment);
+
+        if (empty($newToken)) {
+            return $response;
+        }
+
+        return Http::acceptJson()
+            ->withToken($newToken)
+            ->send($method, $url, ['json' => $resolvedPayload]);
+    }
+
+    private function forceRefreshBearerToken(ApiTestEnvironment $environment): ?string
+    {
+        if (empty($environment->id)) {
+            return null;
+        }
+
+        $environment->refresh();
+
+        if (empty($environment->auth_login_path)) {
+            return $environment->bearer_token;
+        }
+
+        return $this->requestAndPersistNewToken($environment);
     }
 
     private function requestAndPersistNewToken(ApiTestEnvironment $environment): ?string

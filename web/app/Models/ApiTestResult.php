@@ -16,6 +16,7 @@ class ApiTestResult extends Model
         'variant_name',
         'passed',
         'status_received',
+        'request_payload',
         'response_body',
         'errors',
         'response_time_ms',
@@ -23,6 +24,7 @@ class ApiTestResult extends Model
 
     protected $casts = [
         'passed'        => 'boolean',
+        'request_payload' => 'array',
         'response_body' => 'array',
     ];
 

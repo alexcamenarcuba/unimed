@@ -34,9 +34,9 @@
                         <p
                             class="text-sm font-semibold tracking-wide text-slate-800"
                         >
-                            Unidevs
+                            CRM - API Testes
                         </p>
-                        <p class="text-xs text-slate-500">Admin Console</p>
+                        <p class="text-xs text-slate-500"></p>
                     </div>
                 </div>
 
@@ -88,25 +88,6 @@
                     </span>
                 </Link>
             </nav>
-
-            <div class="mt-auto p-4">
-                <div
-                    :class="[
-                        sidebarOpen || isMobile
-                            ? 'flex items-center gap-3 p-3'
-                            : 'p-2 flex justify-center',
-                        'rounded-xl bg-linear-to-r from-amber-50 to-emerald-50 border border-amber-100',
-                    ]"
-                >
-                    <i class="pi pi-shield text-emerald-600"></i>
-                    <p
-                        v-if="sidebarOpen || isMobile"
-                        class="text-xs text-slate-600"
-                    >
-                        Ambiente seguro e monitorado
-                    </p>
-                </div>
-            </div>
         </aside>
 
         <div class="flex-1 flex flex-col min-h-screen md:pl-0">

@@ -3,7 +3,7 @@
     <div class="p-4 flex flex-col gap-4">
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="text-2xl font-bold">Execucao {{ run.id }}</h1>
+          <h1 class="text-2xl font-bold">Execução {{ run.id }}</h1>
           <p class="text-sm text-gray-500">
             Suite: {{ run.suite?.name || '-' }} | Data: {{ run.created_at }}
           </p>
@@ -47,7 +47,7 @@
                 {{ slotProps.data.environment?.name || 'Base URL da Suite' }}
               </template>
             </Column>
-            <Column field="variant_name" header="Variante" />
+            
             <Column field="status_received" header="HTTP" />
             <Column header="Status">
               <template #body="slotProps">
@@ -68,7 +68,7 @@
 
       <Dialog
         v-model:visible="detailVisible"
-        header="Detalhes da Execucao"
+        header="Detalhes da Execução"
         :style="{ width: '900px' }"
         modal
       >
@@ -88,8 +88,8 @@
           </div>
 
           <TabView>
-            <TabPanel header="Request Esperado">
-              <JsonViewer :data="selectedResult.test_case?.request_payload" />
+            <TabPanel header="Request Enviado">
+              <JsonViewer :data="getSentRequestPayload(selectedResult)" />
             </TabPanel>
             <TabPanel header="Response Recebido">
               <JsonViewer :data="selectedResult.response_body" />
@@ -139,5 +139,15 @@ const failedCount = computed(() =>
 function openDetail(result) {
   selectedResult.value = result
   detailVisible.value = true
+}
+
+function getSentRequestPayload(result) {
+  if (result?.request_payload !== null && result?.request_payload !== undefined) {
+    return result.request_payload
+  }
+
+  return {
+    message: 'Request enviado nao foi armazenado nesta execucao. Rode novamente para capturar este dado.',
+  }
 }
 </script>

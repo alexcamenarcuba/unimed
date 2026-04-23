@@ -278,39 +278,70 @@ class TestSuiteController extends Controller
     public function show(ApiTestSuite $suite)
     {
         $suite->load('endpoints.testCases', 'environments');
+        $environments = $suite->environments->sortBy('created_at')->values();
 
         $resultCaseForeignKey = Schema::hasColumn('api_test_results', 'test_case_id')
             ? 'test_case_id'
             : 'api_test_case_id';
 
-        $latestResults = DB::table('api_test_results as r')
+        $latestResultsByEnvironment = DB::table('api_test_results as r')
             ->select(
                 "r.{$resultCaseForeignKey} as case_id",
+                'r.environment_id',
                 'r.passed',
                 'r.response_body',
-                'r.status_received'
+                'r.status_received',
+                'r.created_at'
             )
             ->join(
                 DB::raw("(
-                    SELECT {$resultCaseForeignKey} as case_id, MAX(created_at) as latest_created_at
+                    SELECT {$resultCaseForeignKey} as case_id, environment_id, MAX(created_at) as latest_created_at
                     FROM api_test_results
-                    GROUP BY {$resultCaseForeignKey}
+                    WHERE environment_id IS NOT NULL
+                    GROUP BY {$resultCaseForeignKey}, environment_id
                 ) as lr"),
                 function ($join) use ($resultCaseForeignKey) {
                     $join->on("r.{$resultCaseForeignKey}", '=', 'lr.case_id')
+                         ->on('r.environment_id', '=', 'lr.environment_id')
                          ->on('r.created_at', '=', 'lr.latest_created_at');
                 }
             )
             ->get()
-            ->keyBy('case_id');
+            ->groupBy('case_id')
+            ->map(function ($items) {
+                return $items->keyBy('environment_id');
+            });
 
-        $suite->endpoints->each(function ($endpoint) use ($latestResults) {
-            $endpoint->testCases->each(function ($case) use ($latestResults, $endpoint) {
-                $result = $latestResults->get($case->id);
+        $suite->endpoints->each(function ($endpoint) use ($latestResultsByEnvironment, $environments) {
+            $endpoint->testCases->each(function ($case) use ($latestResultsByEnvironment, $endpoint, $environments) {
+                $resultsByEnvironment = $latestResultsByEnvironment->get($case->id, collect());
 
-                $case->last_result = $result ? (bool) $result->passed : null;
-                $case->response_body = $result->response_body ?? null;
-                $case->status_received = $result->status_received ?? null;
+                $case->environment_results = $environments->map(function ($environment) use ($resultsByEnvironment) {
+                    $result = $resultsByEnvironment->get($environment->id);
+
+                    return [
+                        'environment_id' => $environment->id,
+                        'environment_name' => $environment->name,
+                        'last_result' => $result ? (bool) $result->passed : null,
+                        'status_received' => $result->status_received ?? null,
+                        'response_body' => $result->response_body ?? null,
+                        'executed_at' => isset($result->created_at)
+                            ? \Carbon\Carbon::parse($result->created_at)->format('d/m/Y H:i:s')
+                            : null,
+                    ];
+                })->values();
+
+                $executedResults = collect($case->environment_results)->filter(function ($item) {
+                    return $item['last_result'] !== null;
+                });
+
+                $case->passed_environments = $executedResults->where('last_result', true)->count();
+                $case->failed_environments = $executedResults->where('last_result', false)->count();
+                $case->last_result = $executedResults->isEmpty()
+                    ? null
+                    : $executedResults->every(function ($item) {
+                        return $item['last_result'] === true;
+                    });
                 $case->endpoint = "{$endpoint->method} {$endpoint->path}";
                 $case->endpoint_id = $endpoint->id;
             });
@@ -324,15 +355,17 @@ class TestSuiteController extends Controller
 
         return Inertia::render('test-orchestrator/pages/TestSuiteShow', [
             'suite' => $suite,
-            'environments' => $suite->environments()
-                ->orderBy('created_at')
-                ->get([
-                    'id',
-                    'name',
-                    'base_url',
-                    'is_active',
-                    'requires_auth',
-                ]),
+            'environments' => $environments
+                ->map(function ($environment) {
+                    return [
+                        'id' => $environment->id,
+                        'name' => $environment->name,
+                        'base_url' => $environment->base_url,
+                        'is_active' => $environment->is_active,
+                        'requires_auth' => $environment->requires_auth,
+                    ];
+                })
+                ->values(),
         ]);
     }
 

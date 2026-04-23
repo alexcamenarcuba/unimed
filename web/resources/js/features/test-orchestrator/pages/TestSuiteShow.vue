@@ -41,7 +41,12 @@
         </div>
 
         <!-- TABELA -->
-        <TestCaseTable :cases="suite.cases" @edit="openEdit" />
+        <TestCaseTable
+            :cases="suite.cases"
+            :environments="environments"
+            @edit="openEdit"
+            @edit-endpoint="openEditEndpoint"
+        />
 
         <div class="mt-6">
             <h2 class="text-lg font-semibold mb-2">Ambientes</h2>
@@ -99,6 +104,10 @@ const props = defineProps({
 
 function openEdit(testCase) {
         router.visit(`/test-suites/${props.suite.id}/cases/${testCase.id}/edit`);
+}
+
+function openEditEndpoint(endpointId) {
+    router.visit(`/test-suites/${props.suite.id}/endpoints/${endpointId}/edit`);
 }
 
 function goToCreate() {
