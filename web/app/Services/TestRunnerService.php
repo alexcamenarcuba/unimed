@@ -65,11 +65,13 @@ class TestRunnerService
                             $requiresAuth
                         );
 
+                        $expectedStatus = $variant['expected_status'] ?? $case->expected_status;
+
                         $responseJson = $response->json();
                         $isPassed = $this->compare(
                             $response->status(),
                             $responseJson,
-                            $case->expected_status,
+                            $expectedStatus,
                             $case->expected_response
                         );
 
@@ -187,12 +189,12 @@ class TestRunnerService
         bool $requiresAuth
     ) {
         if (!$requiresAuth) {
-            return Http::acceptJson()->send($method, $url, ['json' => $resolvedPayload]);
+            return $this->buildHttpClient($environment)->send($method, $url, ['json' => $resolvedPayload]);
         }
 
         $token = $this->resolveBearerToken($environment);
 
-        $http = Http::acceptJson();
+        $http = $this->buildHttpClient($environment);
 
         if (!empty($token)) {
             $http = $http->withToken($token);
@@ -210,9 +212,22 @@ class TestRunnerService
             return $response;
         }
 
-        return Http::acceptJson()
+        return $this->buildHttpClient($environment)
             ->withToken($newToken)
             ->send($method, $url, ['json' => $resolvedPayload]);
+    }
+
+    private function buildHttpClient(ApiTestEnvironment $environment)
+    {
+        $http = Http::acceptJson();
+
+        if (!empty($environment->bypass_header_name) && !empty($environment->bypass_header_value)) {
+            $http = $http->withHeaders([
+                $environment->bypass_header_name => $environment->bypass_header_value,
+            ]);
+        }
+
+        return $http;
     }
 
     private function forceRefreshBearerToken(ApiTestEnvironment $environment): ?string
@@ -319,11 +334,16 @@ class TestRunnerService
                 }
 
                 $variantName = $variantPayload['__name'] ?? ('variante_' . ($index + 1));
+                $expectedStatus = isset($variantPayload['__expected_status'])
+                    ? (int) $variantPayload['__expected_status']
+                    : null;
+
                 $payload = $variantPayload;
-                unset($payload['__name']);
+                unset($payload['__name'], $payload['__expected_status']);
 
                 $variants[] = [
                     'name' => $variantName,
+                    'expected_status' => $expectedStatus,
                     'payload' => $payload,
                 ];
             }
@@ -385,6 +405,17 @@ class TestRunnerService
                 continue;
             }
 
+            if ($value === '') {
+                $normalized[$key] = '';
+                continue;
+            }
+
+            // '""' digitado no campo de override = intenção de enviar string vazia
+            if ($value === '""') {
+                $normalized[$key] = '';
+                continue;
+            }
+
             if (is_string($value) && trim($value) === '') {
                 continue;
             }
@@ -397,13 +428,29 @@ class TestRunnerService
 
     private function isFlatOverrideMap(array $overrides): bool
     {
-        foreach ($overrides as $value) {
-            if (!is_array($value)) {
+        if (empty($overrides)) {
+            return true;
+        }
+
+        foreach ($overrides as $key => $value) {
+            if (!$this->isEnvironmentOverrideKey((string) $key)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function isEnvironmentOverrideKey(string $key): bool
+    {
+        if ($key === '__default') {
+            return true;
+        }
+
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $key
+        );
     }
 
     private function buildVariableDictionary($variables, string $environmentId): array

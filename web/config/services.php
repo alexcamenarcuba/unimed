@@ -28,6 +28,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'azure_devops' => [
+        'pat'           => env('AZURE_PAT'),
+        'org'           => env('AZURE_ORG', 'unimedpr'),
+        'project'       => env('AZURE_PROJECT', 'CRM'),
+        'assigned_to'   => env('AZURE_ASSIGNED_TO'),
+        'filial_field'  => env('AZURE_FILIAL_FIELD', 'Custom.Solicitante'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

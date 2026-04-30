@@ -189,6 +189,7 @@ const menu = [
     { label: "Dashboard",           icon: "pi pi-home",       href: "/" },
     { label: "Cenários de Testes",  icon: "pi pi-list-check", href: "/test-suites" },
     { label: "Histórico de Runs",   icon: "pi pi-chart-line", href: "/test-runs" },
+    { label: "Chamados",            icon: "pi pi-ticket", href: "/tickets" },
 ];
 
 const checkScreen = () => {

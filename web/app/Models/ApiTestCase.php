@@ -11,6 +11,7 @@ class ApiTestCase extends Model
     protected $fillable = [
         'endpoint_id',
         'name',
+        'grupo',
         'request_payload',
         'variable_overrides',
         'expected_response',

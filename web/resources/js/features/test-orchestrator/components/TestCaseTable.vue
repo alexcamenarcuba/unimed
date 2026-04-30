@@ -1,5 +1,17 @@
 <template>
-  <DataTable :value="cases" stripedRows>
+  <DataTable
+    :value="sortedCases"
+    stripedRows
+    rowGroupMode="subheader"
+    groupRowsBy="grupo"
+    :sortField="'grupo'"
+    :sortOrder="1"
+  >
+    <template #groupheader="slot">
+      <span class="text-sm font-semibold text-gray-600">
+        {{ slot.data.grupo || 'Sem grupo' }}
+      </span>
+    </template>
     <Column headerStyle="width: 3rem">
       <template #header>
         <input
@@ -127,6 +139,14 @@ const emit = defineEmits(['edit', 'edit-endpoint', 'update:selectedCaseIds'])
 const jsonVisible = ref(false)
 const selectedJson = ref(null)
 const allSelected = computed(() => props.cases.length > 0 && props.cases.every((testCase) => props.selectedCaseIds.includes(testCase.id)))
+
+const sortedCases = computed(() => {
+  return [...props.cases].sort((a, b) => {
+    const ga = a.grupo || ''
+    const gb = b.grupo || ''
+    return ga.localeCompare(gb, 'pt')
+  })
+})
 
 function showJson(json) {
   selectedJson.value = json

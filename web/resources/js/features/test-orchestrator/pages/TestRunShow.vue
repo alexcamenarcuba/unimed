@@ -8,7 +8,31 @@
             Suite: {{ run.suite?.name || '-' }} | Data: {{ run.created_at }}
           </p>
         </div>
-        <Button label="Voltar ao Dashboard" icon="pi pi-chart-line" severity="secondary" @click="router.visit('/test-runs')" />
+        <div class="flex items-center gap-2">
+          <Button
+            v-if="run.suite?.id"
+            label="Voltar para Suite"
+            icon="pi pi-arrow-left"
+            severity="secondary"
+            @click="goToSuite"
+          />
+          <Button
+            v-if="run.suite?.id"
+            label="Executar Novamente"
+            icon="pi pi-refresh"
+            severity="success"
+            :loading="rerunning"
+            @click="rerunLastExecution"
+          />
+          <Button
+            label="Exportar PDF"
+            icon="pi pi-file-pdf"
+            severity="secondary"
+            :loading="generatingPdf"
+            @click="generatePdf"
+          />
+          <Button label="Voltar ao Dashboard" icon="pi pi-chart-line" severity="secondary" @click="router.visit('/test-runs')" />
+        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -129,6 +153,101 @@ const props = defineProps({
   }
 })
 
+const generatingPdf = ref(false)
+const rerunning = ref(false)
+
+async function generatePdf() {
+  generatingPdf.value = true
+
+  try {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+    const suiteName = props.run.suite?.name || '-'
+    const runDate = props.run.created_at || '-'
+    const total = props.run.results.length
+    const passed = passedCount.value
+    const failed = failedCount.value
+
+    // Cabeçalho
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Relatório de Execução de Testes', 14, 16)
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Suite: ${suiteName}`, 14, 24)
+    doc.text(`Data: ${runDate}`, 14, 30)
+    doc.text(`ID da execução: ${props.run.id}`, 14, 36)
+
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Total: ${total}   Passaram: ${passed}   Falharam: ${failed}`, 14, 44)
+
+    // Tabela de resultados
+    const rows = props.run.results.map((result) => {
+      const method = result.test_case?.endpoint?.method || '-'
+      const path = result.test_case?.endpoint?.path || '-'
+      const ambiente = result.environment?.name || 'Base URL da Suite'
+      const status = result.passed ? 'PASSOU' : 'FALHOU'
+      const httpCode = result.status_received ?? '-'
+      const request = result.request_payload != null
+        ? JSON.stringify(result.request_payload, null, 2)
+        : '(não registrado)'
+      const response = result.response_body != null
+        ? JSON.stringify(result.response_body, null, 2)
+        : '(sem resposta)'
+
+      return [
+        result.test_case?.name || '-',
+        `${method} ${path}`,
+        ambiente,
+        String(httpCode),
+        status,
+        request,
+        response,
+      ]
+    })
+
+    autoTable(doc, {
+      startY: 50,
+      head: [['Cenário', 'Endpoint', 'Ambiente', 'HTTP Code', 'Status', 'Request Enviado', 'Response Recebido']],
+      body: rows,
+      styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
+      headStyles: { fillColor: [30, 150, 100], textColor: 255, fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 30 },
+        3: { cellWidth: 18 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 60, font: 'courier' },
+        6: { cellWidth: 60, font: 'courier' },
+      },
+      didParseCell(data) {
+        if (data.column.index === 4) {
+          if (data.cell.raw === 'PASSOU') {
+            data.cell.styles.textColor = [22, 163, 74]
+            data.cell.styles.fontStyle = 'bold'
+          } else if (data.cell.raw === 'FALHOU') {
+            data.cell.styles.textColor = [220, 38, 38]
+            data.cell.styles.fontStyle = 'bold'
+          }
+        }
+      },
+    })
+
+    const filename = `relatorio-execucao-${props.run.id.substring(0, 8)}.pdf`
+    doc.save(filename)
+  } catch (e) {
+    console.error('Erro ao gerar PDF:', e)
+    alert('Erro ao gerar PDF. Tente novamente.')
+  } finally {
+    generatingPdf.value = false
+  }
+}
+
 const detailVisible = ref(false)
 const selectedResult = ref(null)
 
@@ -140,9 +259,41 @@ const failedCount = computed(() =>
   props.run.results.filter((r) => !r.passed).length
 )
 
+const lastExecutedCaseIds = computed(() => {
+  const ids = props.run.results
+    .map((result) => result?.test_case_id)
+    .filter((id) => Boolean(id))
+
+  return [...new Set(ids)]
+})
+
 function openDetail(result) {
   selectedResult.value = result
   detailVisible.value = true
+}
+
+function goToSuite() {
+  if (!props.run.suite?.id) {
+    return
+  }
+
+  router.visit(`/test-suites/${props.run.suite.id}`)
+}
+
+function rerunLastExecution() {
+  if (!props.run.suite?.id) {
+    return
+  }
+
+  rerunning.value = true
+
+  router.post(`/test-suites/${props.run.suite.id}/run`, {
+    test_case_ids: lastExecutedCaseIds.value,
+  }, {
+    onFinish: () => {
+      rerunning.value = false
+    },
+  })
 }
 
 function getSentRequestPayload(result) {

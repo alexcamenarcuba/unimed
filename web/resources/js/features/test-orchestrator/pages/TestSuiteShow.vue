@@ -101,11 +101,20 @@
                 </Column>
                 <Column header="Acoes">
                     <template #body="slotProps">
-                        <Button
-                            icon="pi pi-pencil"
-                            text
-                            @click="goToEditEnvironment(slotProps.data.id)"
-                        />
+                        <div class="flex items-center gap-1">
+                            <Button
+                                :label="slotProps.data.is_active ? 'Desativar' : 'Ativar'"
+                                :icon="slotProps.data.is_active ? 'pi pi-ban' : 'pi pi-check'"
+                                :severity="slotProps.data.is_active ? 'danger' : 'success'"
+                                text
+                                @click="toggleEnvironmentStatus(slotProps.data)"
+                            />
+                            <Button
+                                icon="pi pi-pencil"
+                                text
+                                @click="goToEditEnvironment(slotProps.data.id)"
+                            />
+                        </div>
                     </template>
                 </Column>
             </DataTable>
@@ -115,6 +124,7 @@
 </template>
 
 <script setup>
+import axios from "axios";
 import { computed, ref, watch } from "vue";
 import AdminLayout from "../../../layouts/AdminLayout.vue";
 import { router } from "@inertiajs/vue3";
@@ -170,6 +180,30 @@ function goToCreateEnvironment() {
 
 function goToEditEnvironment(environmentId) {
     router.visit(`/test-suites/${props.suite.id}/environments/${environmentId}/edit`);
+}
+
+async function toggleEnvironmentStatus(environment) {
+    const shouldActivate = !environment.is_active
+    const actionLabel = shouldActivate ? 'ativar' : 'desativar'
+
+    if (!window.confirm(`Deseja ${actionLabel} o ambiente "${environment.name}"?`)) {
+        return
+    }
+
+    try {
+        await axios.patch(`/test-suites/${props.suite.id}/environments/${environment.id}/status`, {
+            is_active: shouldActivate,
+        })
+
+        router.reload({
+            only: ['environments'],
+            preserveScroll: true,
+        })
+    } catch (error) {
+        const message = error?.response?.data?.errors?.is_active?.[0]
+            ?? `Nao foi possivel ${actionLabel} o ambiente.`
+        alert(message)
+    }
 }
 
 function goToEditSuite() {

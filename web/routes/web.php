@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\TestSuiteController;
 use App\Http\Controllers\TestRunController;
+use App\Http\Controllers\AzureController;
 
 Route::get('/', function () {
     return Inertia::render('/Index');
@@ -20,6 +21,7 @@ Route::prefix('test-suites')->group(function () {
     Route::post('/{suite}/environments', [TestSuiteController::class, 'storeEnvironment']);
     Route::get('/{suite}/environments/{environment}/edit', [TestSuiteController::class, 'editEnvironment']);
     Route::put('/{suite}/environments/{environment}', [TestSuiteController::class, 'updateEnvironment']);
+    Route::patch('/{suite}/environments/{environment}/status', [TestSuiteController::class, 'toggleEnvironmentStatus']);
     Route::get('/{suite}/endpoints/create', [TestSuiteController::class, 'createEndpoint']);
     Route::post('/{suite}/endpoints', [TestSuiteController::class, 'storeEndpoint']);
     Route::get('/{suite}/endpoints/{endpoint}/edit', [TestSuiteController::class, 'editEndpoint']);
@@ -34,4 +36,10 @@ Route::prefix('test-suites')->group(function () {
 Route::prefix('test-runs')->group(function () {
     Route::get('/', [TestRunController::class, 'index'])->name('test-runs.index');
     Route::get('/{run}', [TestRunController::class, 'show'])->name('test-runs.show');
+});
+
+Route::prefix('tickets')->group(function () {
+    Route::get('/', [AzureController::class, 'dashboard']);
+    Route::get('/work-items', [AzureController::class, 'workItems']);
+    Route::get('/debug-fields', [AzureController::class, 'debugFields']);
 });

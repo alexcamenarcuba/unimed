@@ -104,6 +104,23 @@
       />
     </div>
 
+    <div class="border rounded-md p-4 flex flex-col gap-4">
+      <p class="text-sm font-medium">Header para bypass de rate limit (opcional)</p>
+      <p class="text-xs text-gray-500">Quando configurado, esse header será enviado em todas as requisições deste ambiente. Útil para identificar o CRM QA e liberar rate limit na API.</p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <BaseInputText
+          v-model="form.bypass_header_name"
+          label="Nome do header"
+          placeholder="X-Internal-Token"
+        />
+        <BaseInputText
+          v-model="form.bypass_header_value"
+          label="Valor do header"
+          placeholder="meu-token-fixo"
+        />
+      </div>
+    </div>
+
   </div>
 
   <div class="flex justify-between w-full mt-6">
@@ -157,6 +174,8 @@ const form = ref({
   auth_validate_path: props.environment?.auth_validate_path ?? '',
   auth_validate_method: props.environment?.auth_validate_method ?? 'GET',
   auth_validate_status: String(props.environment?.auth_validate_status ?? 200),
+  bypass_header_name: props.environment?.bypass_header_name ?? '',
+  bypass_header_value: props.environment?.bypass_header_value ?? '',
 })
 
 async function save() {
@@ -176,6 +195,8 @@ async function save() {
       auth_validate_path: form.value.auth_validate_path || null,
       auth_validate_method: form.value.auth_validate_method,
       auth_validate_status: Number(form.value.auth_validate_status || 200),
+      bypass_header_name: form.value.bypass_header_name || null,
+      bypass_header_value: form.value.bypass_header_value || null,
     }
 
     if (props.environment?.id) {

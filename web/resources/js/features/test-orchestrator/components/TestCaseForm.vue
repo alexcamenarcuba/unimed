@@ -1,10 +1,17 @@
 <template>
     <div class="flex flex-col gap-4">
-        <BaseInputText
-            v-model="form.name"
-            label="Nome do teste"
-            placeholder="Ex: Login com credenciais validas"
-        />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <BaseInputText
+                v-model="form.name"
+                label="Nome do teste"
+                placeholder="Ex: Login com credenciais validas"
+            />
+            <BaseInputText
+                v-model="form.grupo"
+                label="Grupo"
+                placeholder="Ex: Motivo 44 - Óbito"
+            />
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <BaseSelect
@@ -33,7 +40,7 @@
         >
             <p class="text-sm font-medium">Overrides de variáveis para este cenário</p>
             <p class="text-xs text-gray-500">
-                O valor padrao vale para todos os ambientes. Se preencher um ambiente especifico, ele sobrescreve apenas naquele sistema.
+                O valor padrão vale para todos os ambientes. Se preencher um ambiente específico, ele sobrescreve apenas naquele sistema.
             </p>
 
             <div class="flex flex-col gap-3">
@@ -44,7 +51,7 @@
                 >
                     <p class="text-xs text-gray-500">{{ environment.name }}</p>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3">
                         <template v-for="variable in selectedEndpointVariables" :key="`override-${environment.id}-${variable.key}`">
                             <BaseInputText
                                 v-if="variable.type === 'simple'"
@@ -52,6 +59,9 @@
                                 :label="`Variável ${variable.key}`"
                                 placeholder="Valor para este cenário"
                             />
+                            <p v-if="variable.type === 'simple'" class="text-xs text-gray-400 -mt-2">
+                                Para enviar string vazia, use <code>""</code>
+                            </p>
 
                             <div v-else-if="variable.type === 'array'" class="flex flex-col gap-2">
                                 <label class="text-sm font-medium">Variável {{ variable.key }}</label>
@@ -69,7 +79,7 @@
                             <div v-else class="flex flex-col justify-center">
                                 <p class="text-sm font-medium">Variável {{ variable.key }}</p>
                                 <p class="text-xs text-gray-500">
-                                    Override de arquivo por cenário ainda nao esta habilitado.
+                                    Override de arquivo por cenário ainda não está habilitado.
                                 </p>
                             </div>
                         </template>
@@ -155,7 +165,7 @@ const emit = defineEmits(["saved", "cancel"]);
 
 const targetEnvironments = computed(() => {
     const environments = [
-        { id: "__default", name: "Padrao para todos os ambientes" },
+        { id: "__default", name: "Padrão para todos os ambientes" },
         ...props.environments,
     ];
 
@@ -163,7 +173,7 @@ const targetEnvironments = computed(() => {
         return environments;
     }
 
-    return [{ id: "__default", name: "Padrao" }];
+    return [{ id: "__default", name: "Padrão" }];
 });
 
 const endpointOptions = computed(() => {
@@ -175,6 +185,7 @@ const endpointOptions = computed(() => {
 
 const form = ref({
     name: "",
+    grupo: "",
     endpoint_id: null,
     expected_status: 200,
     request_json: "",
@@ -217,6 +228,7 @@ function hydrateForm() {
     if (props.testCase) {
         form.value = {
             name: props.testCase.name,
+            grupo: props.testCase.grupo ?? "",
             endpoint_id: props.testCase.endpoint_id,
             expected_status: props.testCase.expected_status ?? 200,
             request_json: JSON.stringify(
@@ -242,6 +254,7 @@ function hydrateForm() {
 function resetForm() {
     form.value = {
         name: "",
+        grupo: "",
         endpoint_id: props.initialEndpointId,
         expected_status: 200,
         request_json: "",
@@ -303,7 +316,21 @@ function unmarkEmptyObjects(value) {
 }
 
 function isFlatOverrideMap(overrides) {
-    return Object.values(overrides).some((value) => !Array.isArray(value) && (typeof value !== "object" || value === null));
+    const entries = Object.entries(overrides ?? {});
+
+    if (!entries.length) {
+        return true;
+    }
+
+    return entries.some(([key]) => !isEnvironmentOverrideKey(key));
+}
+
+function isEnvironmentOverrideKey(key) {
+    if (key === "__default") {
+        return true;
+    }
+
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(key));
 }
 
 function syncOverrideState() {
@@ -354,6 +381,12 @@ function buildFilteredOverrides() {
             const value = form.value.variable_overrides?.[environment.id]?.[variable.key];
 
             if (value === null || value === undefined) {
+                continue;
+            }
+
+            // '""' digitado no campo = intenção de enviar string vazia
+            if (value === '""') {
+                environmentOverrides[variable.key] = '';
                 continue;
             }
 
@@ -416,6 +449,7 @@ async function save() {
 
         const payload = {
             name: form.value.name,
+            grupo: form.value.grupo || null,
             endpoint_id: form.value.endpoint_id,
             expected_status: form.value.expected_status,
             request_json: JSON.parse(form.value.request_json || "{}"),

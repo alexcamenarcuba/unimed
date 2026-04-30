@@ -50,10 +50,19 @@
       <div
         v-for="(variable, index) in form.variables"
         :key="index"
-        class="border rounded-md p-3 flex flex-col gap-3"
+        draggable="true"
+        class="border rounded-md p-3 flex flex-col gap-3 transition-opacity"
+        :class="{ 'opacity-40': dragIndex === index }"
+        @dragstart="onDragStart(index)"
+        @dragover.prevent="onDragOver(index)"
+        @drop.prevent="onDrop"
+        @dragend="onDragEnd"
       >
         <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
-          <div class="md:col-span-5">
+          <div class="md:col-span-1 pt-5 flex items-center justify-center cursor-grab text-gray-400 hover:text-gray-600">
+            <i class="pi pi-bars" />
+          </div>
+          <div class="md:col-span-4">
             <BaseInputText
               v-model="variable.key"
               label="Chave"
@@ -277,6 +286,32 @@ function addVariable() {
 
 function removeVariable(index) {
   form.value.variables.splice(index, 1)
+}
+
+const dragIndex = ref(null)
+let dragOverIndex = null
+
+function onDragStart(index) {
+  dragIndex.value = index
+}
+
+function onDragOver(index) {
+  dragOverIndex = index
+}
+
+function onDrop() {
+  if (dragIndex.value === null || dragOverIndex === null || dragIndex.value === dragOverIndex) {
+    return
+  }
+
+  const items = form.value.variables
+  const moved = items.splice(dragIndex.value, 1)[0]
+  items.splice(dragOverIndex, 0, moved)
+}
+
+function onDragEnd() {
+  dragIndex.value = null
+  dragOverIndex = null
 }
 
 function onVariableTypeChange(variable) {

@@ -24,6 +24,8 @@ class ApiTestEnvironment extends Model
         'auth_validate_path',
         'auth_validate_method',
         'auth_validate_status',
+        'bypass_header_name',
+        'bypass_header_value',
     ];
 
     protected $casts = [

@@ -170,6 +170,8 @@ class TestSuiteController extends Controller
             'auth_validate_path' => 'nullable|string|max:255',
             'auth_validate_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
             'auth_validate_status' => 'nullable|integer|min:100|max:599',
+            'bypass_header_name' => 'nullable|string|max:100',
+            'bypass_header_value' => 'nullable|string|max:500',
         ]);
 
         $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
@@ -223,6 +225,8 @@ class TestSuiteController extends Controller
                 'auth_validate_path' => $environment->auth_validate_path,
                 'auth_validate_method' => $environment->auth_validate_method,
                 'auth_validate_status' => $environment->auth_validate_status,
+                'bypass_header_name' => $environment->bypass_header_name,
+                'bypass_header_value' => $environment->bypass_header_value,
             ],
         ]);
     }
@@ -246,6 +250,8 @@ class TestSuiteController extends Controller
             'auth_validate_path' => 'nullable|string|max:255',
             'auth_validate_method' => 'nullable|string|in:GET,POST,PUT,PATCH,DELETE',
             'auth_validate_status' => 'nullable|integer|min:100|max:599',
+            'bypass_header_name' => 'nullable|string|max:100',
+            'bypass_header_value' => 'nullable|string|max:500',
         ]);
 
         $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
@@ -273,6 +279,41 @@ class TestSuiteController extends Controller
         $environment->update($validated);
 
         return response()->json(['success' => true]);
+    }
+
+    public function toggleEnvironmentStatus(Request $request, ApiTestSuite $suite, ApiTestEnvironment $environment)
+    {
+        if ($environment->suite_id !== $suite->id) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+
+        $newStatus = (bool) $validated['is_active'];
+
+        if ($environment->is_active && !$newStatus) {
+            $activeCount = $suite->environments()
+                ->where('is_active', true)
+                ->count();
+
+            if ($activeCount <= 1) {
+                throw ValidationException::withMessages([
+                    'is_active' => 'A suite precisa ter ao menos um ambiente ativo.',
+                ]);
+            }
+        }
+
+        $environment->update([
+            'is_active' => $newStatus,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'environment_id' => $environment->id,
+            'is_active' => (bool) $environment->is_active,
+        ]);
     }
 
     public function show(ApiTestSuite $suite)
@@ -500,6 +541,7 @@ class TestSuiteController extends Controller
             'request_json' => 'nullable|array',
             'expected_json' => 'nullable|array',
             'variable_overrides' => 'nullable|array',
+            'grupo' => 'nullable|string|max:255',
         ]);
 
         $endpoint = Endpoint::where('suite_id', $suite->id)
@@ -508,6 +550,7 @@ class TestSuiteController extends Controller
 
         $endpoint->testCases()->create([
             'name'              => $validated['name'],
+            'grupo'             => $validated['grupo'] ?? null,
             'request_payload'   => $validated['request_json'] ?? null,
             'variable_overrides' => $this->sanitizeVariableOverrides($validated['variable_overrides'] ?? []),
             'expected_response' => $validated['expected_json'] ?? null,
@@ -530,6 +573,7 @@ class TestSuiteController extends Controller
             'request_json' => 'nullable|array',
             'expected_json' => 'nullable|array',
             'variable_overrides' => 'nullable|array',
+            'grupo' => 'nullable|string|max:255',
         ]);
 
         Endpoint::where('suite_id', $suite->id)
@@ -539,6 +583,7 @@ class TestSuiteController extends Controller
         $apiCase->update([
             'endpoint_id'       => $validated['endpoint_id'],
             'name'              => $validated['name'],
+            'grupo'             => $validated['grupo'] ?? null,
             'request_payload'   => $validated['request_json'] ?? null,
             'variable_overrides' => $this->sanitizeVariableOverrides($validated['variable_overrides'] ?? []),
             'expected_response' => $validated['expected_json'] ?? null,
@@ -631,6 +676,12 @@ class TestSuiteController extends Controller
                 continue;
             }
 
+            // Permite string vazia intencional para validar obrigatoriedade.
+            if ($value === '') {
+                $sanitized[$key] = '';
+                continue;
+            }
+
             if (is_string($value) && trim($value) === '') {
                 continue;
             }
@@ -643,12 +694,28 @@ class TestSuiteController extends Controller
 
     private function isFlatOverrideMap(array $overrides): bool
     {
-        foreach ($overrides as $value) {
-            if (!is_array($value)) {
+        if (empty($overrides)) {
+            return true;
+        }
+
+        foreach ($overrides as $key => $value) {
+            if (!$this->isEnvironmentOverrideKey((string) $key)) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    private function isEnvironmentOverrideKey(string $key): bool
+    {
+        if ($key === '__default') {
+            return true;
+        }
+
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
+            $key
+        );
     }
 }
