@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Models\ApiTestSuite;
 use App\Models\ApiTestCase;
+use App\Models\ApiTestCaseGroup;
 use App\Models\ApiTestEnvironment;
 use App\Models\Endpoint;
 use App\Services\TestRunnerService;
@@ -318,7 +319,7 @@ class TestSuiteController extends Controller
 
     public function show(ApiTestSuite $suite)
     {
-        $suite->load('endpoints.testCases', 'environments');
+        $suite->load('endpoints.testCases', 'environments', 'testCaseGroups');
         $environments = $suite->environments->sortBy('created_at')->values();
 
         $resultCaseForeignKey = Schema::hasColumn('api_test_results', 'test_case_id')
@@ -396,6 +397,15 @@ class TestSuiteController extends Controller
 
         return Inertia::render('test-orchestrator/pages/TestSuiteShow', [
             'suite' => $suite,
+            'groups' => $suite->testCaseGroups
+                ->sortBy('name')
+                ->values()
+                ->map(function ($group) {
+                    return [
+                        'id' => $group->id,
+                        'name' => $group->name,
+                    ];
+                }),
             'environments' => $environments
                 ->map(function ($environment) {
                     return [
@@ -438,7 +448,7 @@ class TestSuiteController extends Controller
         ]);
 
         $validated['requires_auth'] = (bool) ($validated['requires_auth'] ?? false);
-        $validated['variables'] = array_values($validated['variables'] ?? []);
+        $validated['variables'] = $this->sanitizeEndpointVariables($validated['variables'] ?? []);
 
         $endpoint = $suite->endpoints()->create($validated);
 
@@ -491,7 +501,7 @@ class TestSuiteController extends Controller
         ]);
 
         $validated['requires_auth'] = (bool) ($validated['requires_auth'] ?? false);
-        $validated['variables'] = array_values($validated['variables'] ?? []);
+        $validated['variables'] = $this->sanitizeEndpointVariables($validated['variables'] ?? []);
 
         $endpoint->update($validated);
 
@@ -500,16 +510,39 @@ class TestSuiteController extends Controller
 
     public function createCase(ApiTestSuite $suite)
     {
+        $duplicateSource = null;
+        $cloneFrom = request()->query('clone_from');
+
+        if (!empty($cloneFrom)) {
+            $duplicateSource = ApiTestCase::query()
+                ->whereKey($cloneFrom)
+                ->whereHas('endpoint', function ($query) use ($suite) {
+                    $query->where('suite_id', $suite->id);
+                })
+                ->firstOrFail();
+        }
+
         return Inertia::render('test-orchestrator/pages/TestCaseFormPage', [
             'suiteId' => $suite->id,
             'testCase' => null,
+            'duplicateSourceCase' => $duplicateSource ? [
+                'id'                => $duplicateSource->id,
+                'name'              => $duplicateSource->name,
+                'grupo'             => $duplicateSource->grupo,
+                'endpoint_id'       => $duplicateSource->endpoint_id,
+                'expected_status'   => $duplicateSource->expected_status,
+                'request_payload'   => $duplicateSource->request_payload,
+                'expected_response' => $duplicateSource->expected_response,
+                'variable_overrides' => $duplicateSource->variable_overrides,
+            ] : null,
             'environments' => $suite->environments()
                 ->orderBy('created_at')
                 ->get(['id', 'name']),
             'endpoints' => $suite->endpoints()
                 ->orderBy('created_at')
                 ->get(['id', 'name', 'method', 'path', 'variables']),
-            'initialEndpointId' => request()->query('endpoint_id'),
+            'groups' => $suite->testCaseGroups()->orderBy('name')->get(['id', 'name']),
+            'initialEndpointId' => $duplicateSource?->endpoint_id ?? request()->query('endpoint_id'),
         ]);
     }
 
@@ -528,6 +561,7 @@ class TestSuiteController extends Controller
             'endpoints' => $suite->endpoints()
                 ->orderBy('created_at')
                 ->get(['id', 'name', 'method', 'path', 'variables']),
+            'groups' => $suite->testCaseGroups()->orderBy('name')->get(['id', 'name']),
             'initialEndpointId' => null,
         ]);
     }
@@ -598,6 +632,31 @@ class TestSuiteController extends Controller
         $case->delete();
 
         return back();
+    }
+
+    public function storeCaseGroup(Request $request, ApiTestSuite $suite)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+
+        $group = $suite->testCaseGroups()->create($validated);
+
+        return response()->json([
+            'success' => true,
+            'group' => ['id' => $group->id, 'name' => $group->name],
+        ]);
+    }
+
+    public function deleteCaseGroup(ApiTestSuite $suite, ApiTestCaseGroup $group)
+    {
+        if ($group->suite_id !== $suite->id) {
+            abort(404);
+        }
+
+        $group->delete();
+
+        return response()->json(['success' => true]);
     }
 
     public function run(ApiTestSuite $suite, TestRunnerService $runner)
@@ -686,10 +745,57 @@ class TestSuiteController extends Controller
                 continue;
             }
 
-            $sanitized[$key] = $value;
+            $sanitized[$key] = $this->normalizeScalarLiteral($value);
         }
 
         return $sanitized;
+    }
+
+    private function sanitizeEndpointVariables(array $variables): array
+    {
+        $sanitized = [];
+
+        foreach (array_values($variables) as $item) {
+            if (!is_array($item) || empty($item['key'])) {
+                continue;
+            }
+
+            $type = $item['type'] ?? 'simple';
+            $values = is_array($item['values'] ?? null) ? $item['values'] : [];
+
+            if ($type === 'simple') {
+                foreach ($values as $environmentId => $value) {
+                    $values[$environmentId] = $this->normalizeScalarLiteral($value);
+                }
+            }
+
+            $sanitized[] = [
+                'key' => $item['key'],
+                'type' => $type,
+                'values' => $values,
+            ];
+        }
+
+        return $sanitized;
+    }
+
+    private function normalizeScalarLiteral($value)
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        $normalized = strtolower(trim($value));
+
+        if ($normalized === 'true') {
+            return true;
+        }
+
+        if ($normalized === 'false') {
+            return false;
+        }
+
+        return $value;
     }
 
     private function isFlatOverrideMap(array $overrides): bool

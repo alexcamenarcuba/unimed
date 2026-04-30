@@ -25,4 +25,9 @@ class ApiTestSuite extends Model
     {
         return $this->hasMany(ApiTestRun::class, 'suite_id');
     }
+
+    public function testCaseGroups()
+    {
+        return $this->hasMany(ApiTestCaseGroup::class, 'suite_id');
+    }
 }

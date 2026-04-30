@@ -401,7 +401,11 @@ class TestRunnerService
         $normalized = [];
 
         foreach ($caseOverrides as $key => $value) {
+            // Normaliza literais antes de qualquer outra checagem
+            $value = $this->normalizeScalarLiterals($value);
+
             if ($value === null) {
+                $normalized[$key] = null;
                 continue;
             }
 
@@ -469,16 +473,47 @@ class TestRunnerService
             }
 
             if (array_key_exists($environmentId, $values)) {
-                $dictionary[$item['key']] = $this->restoreEmptyObjects($values[$environmentId]);
+                $dictionary[$item['key']] = $this->normalizeScalarLiterals(
+                    $this->restoreEmptyObjects($values[$environmentId])
+                );
                 continue;
             }
 
             if (array_key_exists('__default', $values)) {
-                $dictionary[$item['key']] = $this->restoreEmptyObjects($values['__default']);
+                $dictionary[$item['key']] = $this->normalizeScalarLiterals(
+                    $this->restoreEmptyObjects($values['__default'])
+                );
             }
         }
 
         return $dictionary;
+    }
+
+    private function normalizeScalarLiterals($value)
+    {
+        if (is_array($value)) {
+            return array_map(fn($v) => $this->normalizeScalarLiterals($v), $value);
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        $lower = strtolower(trim($value));
+
+        if ($lower === 'null') {
+            return null;
+        }
+
+        if ($lower === 'true') {
+            return true;
+        }
+
+        if ($lower === 'false') {
+            return false;
+        }
+
+        return $value;
     }
 
     private function restoreEmptyObjects($value)

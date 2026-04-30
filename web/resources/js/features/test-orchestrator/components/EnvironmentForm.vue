@@ -136,6 +136,7 @@
 <script setup>
 import axios from 'axios'
 import { ref } from 'vue'
+import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import Textarea from 'primevue/textarea'
@@ -152,6 +153,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['saved', 'cancel'])
+const toast = useToast()
 
 const httpMethods = [
   { label: 'GET', value: 'GET' },
@@ -208,7 +210,12 @@ async function save() {
     const response = await axios.post(`/test-suites/${props.suiteId}/environments`, payload)
     emit('saved', response.data.environment_id)
   } catch (e) {
-    alert('Erro ao salvar ambiente (verifique o JSON do login)')
+    toast.add({
+      severity: 'error',
+      summary: 'Falha ao salvar ambiente',
+      detail: 'Verifique o JSON do login e tente novamente.',
+      life: 4500,
+    })
   }
 }
 </script>

@@ -30,6 +30,8 @@ Route::prefix('test-suites')->group(function () {
     Route::get('/{suite}/cases/{case}/edit', [TestSuiteController::class, 'editCase']);
     Route::put('/{suite}/cases/{apiCase}', [TestSuiteController::class, 'updateCase']);
     Route::post('/{suite}/cases', [TestSuiteController::class, 'storeCase']);
+    Route::post('/{suite}/case-groups', [TestSuiteController::class, 'storeCaseGroup']);
+    Route::delete('/{suite}/case-groups/{group}', [TestSuiteController::class, 'deleteCaseGroup']);
     Route::post('/{suite}/run', [TestSuiteController::class, 'run']);
 });
 

@@ -85,6 +85,24 @@
           </div>
         </div>
 
+        <!-- Por solicitante -->
+        <div class="bg-white border rounded-xl p-5 mb-6">
+          <p class="text-sm font-semibold text-slate-700 mb-4">Por solicitante</p>
+          <div v-if="Object.keys(solicitanteCounts).length" class="flex flex-col gap-3">
+            <div v-for="(count, solicitante) in solicitanteCounts" :key="solicitante" class="flex items-center gap-3">
+              <span class="text-xs text-slate-600 w-44 shrink-0 truncate" :title="solicitante">{{ solicitante }}</span>
+              <div class="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden">
+                <div
+                  class="h-5 rounded-full bg-violet-400 transition-all duration-500"
+                  :style="{ width: percent(count, items.length) + '%' }"
+                />
+              </div>
+              <span class="text-xs font-medium text-slate-700 w-6 text-right">{{ count }}</span>
+            </div>
+          </div>
+          <p v-else class="text-sm text-slate-400">Nenhum solicitante identificado.</p>
+        </div>
+
         <!-- FILTERS -->
         <div class="bg-white border rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
           <div class="flex-1 min-w-40">
@@ -298,6 +316,18 @@ const typeCounts = computed(() => {
     counts[item.type] = (counts[item.type] ?? 0) + 1
   }
   return counts
+})
+
+const solicitanteCounts = computed(() => {
+  const counts = {}
+  for (const item of items.value) {
+    if (!item.solicitante) continue
+    counts[item.solicitante] = (counts[item.solicitante] ?? 0) + 1
+  }
+  // Ordenar do maior para o menor
+  return Object.fromEntries(
+    Object.entries(counts).sort(([, a], [, b]) => b - a)
+  )
 })
 
 const overdueCount = computed(() => items.value.filter((i) => i.is_overdue).length)

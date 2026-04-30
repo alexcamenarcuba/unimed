@@ -9,6 +9,8 @@ import MyTheme from "./theme/style";
 
 import ToastService from "primevue/toastservice";
 import Toast from "primevue/toast";
+import ConfirmationService from "primevue/confirmationservice";
+import ConfirmDialog from "primevue/confirmdialog";
 
 createInertiaApp({
     resolve: (name) => {
@@ -49,7 +51,9 @@ createInertiaApp({
         }
 
         app.use(ToastService);
+        app.use(ConfirmationService);
         app.component("Toast", Toast);
+        app.component("ConfirmDialog", ConfirmDialog);
 
         app.mount(el);
     },

@@ -98,6 +98,7 @@
       <template #body="slot">
         <div class="flex gap-2">
           <Button icon="pi pi-pencil" text @click="emit('edit', slot.data)" />
+          <Button icon="pi pi-copy" text severity="secondary" @click="emit('duplicate', slot.data)" />
           <Button icon="pi pi-trash" severity="danger" text />
         </div>
       </template>
@@ -134,7 +135,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['edit', 'edit-endpoint', 'update:selectedCaseIds'])
+const emit = defineEmits(['edit', 'duplicate', 'edit-endpoint', 'update:selectedCaseIds'])
 
 const jsonVisible = ref(false)
 const selectedJson = ref(null)

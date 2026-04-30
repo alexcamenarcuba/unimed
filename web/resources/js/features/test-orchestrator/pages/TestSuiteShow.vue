@@ -1,8 +1,8 @@
 <template>
-    <AdminLayout>
+    <AdminLayout contentFullWidth>
         <!-- BG SECTION -->
-        <div class="bg-gradient-to-b from-emerald-50/40 to-transparent pt-6 pb-8 -mx-4 px-4 sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
-            <div class="max-w-7xl mx-auto">
+        <div class="bg-gradient-to-b from-emerald-50/40 to-transparent pt-6 pb-8 px-3 sm:px-4 md:px-6">
+            <div class="w-full">
                 <!-- HEADER -->
                 <div class="flex justify-between items-start gap-4 mb-6">
                     <div>
@@ -20,7 +20,7 @@
                             @click="selectAllCases"
                         />
                         <Button
-                            label="Limpar selecao"
+                            label="Limpar seleção"
                             severity="secondary"
                             text
                             @click="clearSelectedCases"
@@ -34,7 +34,7 @@
                 </div>
 
                 <p class="text-sm text-gray-500 mb-4">
-                    {{ selectedCaseIds.length }} de {{ suite.cases?.length ?? 0 }} cenarios selecionados para execucao.
+                    {{ selectedCaseIds.length }} de {{ suite.cases?.length ?? 0 }} cenários selecionados para execução.
                 </p>
 
                 <!-- AÇÃO -->
@@ -66,7 +66,7 @@
             </div>
         </div>
 
-    <div class="p-4">
+    <div class="px-3 pb-4 sm:px-4 md:px-6">
         <!-- TABELA -->
         <div class="overflow-x-auto border rounded-lg">
             <TestCaseTable
@@ -74,8 +74,52 @@
                 :environments="environments"
                 v-model:selectedCaseIds="selectedCaseIds"
                 @edit="openEdit"
+                @duplicate="duplicateCase"
                 @edit-endpoint="openEditEndpoint"
             />
+        </div>
+
+        <div class="mt-6 border rounded-lg p-4 flex flex-col gap-4">
+            <div>
+                <h2 class="text-lg font-semibold">Grupos de Cenário</h2>
+                <p class="text-sm text-gray-500">
+                    Cadastre grupos reutilizáveis para não repetir textos como "Regras Gerais - Campos Obrigatórios".
+                </p>
+            </div>
+
+            <div class="flex flex-col md:flex-row gap-3 md:items-end">
+                <div class="flex-1">
+                    <BaseInputText
+                        v-model="newGroupName"
+                        label="Nome do grupo"
+                    />
+                </div>
+
+                <Button
+                    label="Cadastrar Grupo"
+                    icon="pi pi-plus"
+                    :loading="savingGroup"
+                    @click="createGroup"
+                />
+            </div>
+
+            <DataTable :value="groups" stripedRows size="small">
+                <Column field="name" header="Grupo" />
+                <Column header="Ações" style="width: 90px">
+                    <template #body="slotProps">
+                        <Button
+                            icon="pi pi-trash"
+                            severity="danger"
+                            text
+                            @click="deleteGroup(slotProps.data)"
+                        />
+                    </template>
+                </Column>
+
+                <template #empty>
+                    <p class="text-center text-gray-400 py-4 text-sm">Nenhum grupo cadastrado.</p>
+                </template>
+            </DataTable>
         </div>
 
         <div class="mt-6">
@@ -128,6 +172,8 @@ import axios from "axios";
 import { computed, ref, watch } from "vue";
 import AdminLayout from "../../../layouts/AdminLayout.vue";
 import { router } from "@inertiajs/vue3";
+import { useToast } from "primevue/usetoast";
+import { useConfirm } from "primevue/useconfirm";
 import Button from "primevue/button";
 import DataTable from "primevue/datatable";
 import Column from "primevue/column";
@@ -137,6 +183,10 @@ import TestRunnerButton from "../components/TestRunnerButton.vue";
 
 const props = defineProps({
     suite: Object,
+    groups: {
+        type: Array,
+        default: () => []
+    },
     environments: {
         type: Array,
         default: () => []
@@ -145,6 +195,11 @@ const props = defineProps({
 
 const selectedCaseIds = ref([])
 const allCaseIds = computed(() => (props.suite?.cases ?? []).map((testCase) => testCase.id))
+const newGroupName = ref('')
+const savingGroup = ref(false)
+
+const toast = useToast()
+const confirm = useConfirm()
 
 watch(allCaseIds, (caseIds) => {
     selectedCaseIds.value = [...caseIds]
@@ -160,6 +215,10 @@ function clearSelectedCases() {
 
 function openEdit(testCase) {
         router.visit(`/test-suites/${props.suite.id}/cases/${testCase.id}/edit`);
+}
+
+function duplicateCase(testCase) {
+    router.visit(`/test-suites/${props.suite.id}/cases/create?clone_from=${testCase.id}`);
 }
 
 function openEditEndpoint(endpointId) {
@@ -182,17 +241,49 @@ function goToEditEnvironment(environmentId) {
     router.visit(`/test-suites/${props.suite.id}/environments/${environmentId}/edit`);
 }
 
+function askConfirmation(message, header = 'Confirmacao') {
+    return new Promise((resolve) => {
+        confirm.require({
+            message,
+            header,
+            icon: 'pi pi-exclamation-triangle',
+            rejectProps: {
+                label: 'Cancelar',
+                severity: 'secondary',
+                text: true,
+            },
+            acceptProps: {
+                label: 'Confirmar',
+            },
+            accept: () => resolve(true),
+            reject: () => resolve(false),
+        })
+    })
+}
+
 async function toggleEnvironmentStatus(environment) {
     const shouldActivate = !environment.is_active
     const actionLabel = shouldActivate ? 'ativar' : 'desativar'
 
-    if (!window.confirm(`Deseja ${actionLabel} o ambiente "${environment.name}"?`)) {
+    const confirmed = await askConfirmation(
+        `Deseja ${actionLabel} o ambiente "${environment.name}"?`,
+        'Confirmar alteracao'
+    )
+
+    if (!confirmed) {
         return
     }
 
     try {
         await axios.patch(`/test-suites/${props.suite.id}/environments/${environment.id}/status`, {
             is_active: shouldActivate,
+        })
+
+        toast.add({
+            severity: 'success',
+            summary: 'Ambiente atualizado',
+            detail: `Ambiente ${environment.name} ${shouldActivate ? 'ativado' : 'desativado'} com sucesso.`,
+            life: 3000,
         })
 
         router.reload({
@@ -202,11 +293,96 @@ async function toggleEnvironmentStatus(environment) {
     } catch (error) {
         const message = error?.response?.data?.errors?.is_active?.[0]
             ?? `Nao foi possivel ${actionLabel} o ambiente.`
-        alert(message)
+
+        toast.add({
+            severity: 'error',
+            summary: 'Falha ao atualizar ambiente',
+            detail: message,
+            life: 4500,
+        })
     }
 }
 
 function goToEditSuite() {
     router.visit(`/test-suites/${props.suite.id}/edit`);
+}
+
+async function createGroup() {
+    if (!newGroupName.value.trim()) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Nome obrigatorio',
+            detail: 'Informe um nome para o grupo.',
+            life: 3000,
+        })
+        return
+    }
+
+    savingGroup.value = true
+
+    try {
+        await axios.post(`/test-suites/${props.suite.id}/case-groups`, {
+            name: newGroupName.value,
+        })
+
+        newGroupName.value = ''
+
+        toast.add({
+            severity: 'success',
+            summary: 'Grupo cadastrado',
+            detail: 'Grupo criado com sucesso.',
+            life: 3000,
+        })
+
+        router.reload({
+            only: ['groups'],
+            preserveScroll: true,
+        })
+    } catch (error) {
+        const message = error?.response?.data?.errors?.name?.[0] ?? 'Nao foi possivel cadastrar o grupo.'
+
+        toast.add({
+            severity: 'error',
+            summary: 'Falha ao cadastrar grupo',
+            detail: message,
+            life: 4500,
+        })
+    } finally {
+        savingGroup.value = false
+    }
+}
+
+async function deleteGroup(group) {
+    const confirmed = await askConfirmation(
+        `Deseja remover o grupo "${group.name}"?`,
+        'Remover grupo'
+    )
+
+    if (!confirmed) {
+        return
+    }
+
+    try {
+        await axios.delete(`/test-suites/${props.suite.id}/case-groups/${group.id}`)
+
+        toast.add({
+            severity: 'success',
+            summary: 'Grupo removido',
+            detail: `Grupo ${group.name} removido com sucesso.`,
+            life: 3000,
+        })
+
+        router.reload({
+            only: ['groups'],
+            preserveScroll: true,
+        })
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Falha ao remover grupo',
+            detail: 'Nao foi possivel remover o grupo.',
+            life: 4500,
+        })
+    }
 }
 </script>

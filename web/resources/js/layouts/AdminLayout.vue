@@ -1,8 +1,7 @@
 <template>
     <Toast />
-    <div
-        class="min-h-screen flex bg-[radial-gradient(circle_at_85%_-10%,rgba(16,185,129,0.14),transparent_42%),radial-gradient(circle_at_0%_100%,rgba(14,165,233,0.12),transparent_40%),linear-gradient(180deg,#f8fafc_0%,#f1f5f9_100%)]"
-    >
+    <ConfirmDialog />
+    <div class="min-h-screen flex w-full">
         <div
             v-if="isMobile && sidebarMobileOpen"
             class="fixed inset-0 z-40 bg-slate-900/45 backdrop-blur-[2px]"
@@ -90,84 +89,99 @@
             </nav>
         </aside>
 
-        <div class="flex-1 flex flex-col min-h-screen md:pl-0">
+        <div class="flex-1 flex flex-col min-w-0">
             <header
-                class="relative z-40 h-16 bg-white border-b border-slate-200/70 flex items-center px-4 md:px-5"
+                class="relative z-40 h-16 bg-white border-b border-slate-200/70 px-3 sm:px-4 md:px-6"
             >
-                <button
-                    v-if="isMobile"
-                    @click="toggleSidebar"
-                    class="mr-3 h-9 w-9 rounded-md border border-slate-200 text-slate-600"
-                    type="button"
+                <div
+                    :class="[
+                        'h-full flex items-center w-full',
+                        props.contentFullWidth ? '' : 'mx-auto max-w-7xl',
+                    ]"
                 >
-                    <i class="pi pi-bars"></i>
-                </button>
+                    <button
+                        v-if="isMobile"
+                        @click="toggleSidebar"
+                        class="mr-3 h-9 w-9 rounded-md border border-slate-200 text-slate-600"
+                        type="button"
+                    >
+                        <i class="pi pi-bars"></i>
+                    </button>
 
-                <div class="ml-auto flex items-center gap-4 md:gap-5">
-                    <i
-                        class="pi pi-search cursor-pointer text-slate-500 hover:text-slate-700 transition"
-                    ></i>
-                    <i
-                        class="pi pi-bell cursor-pointer text-slate-500 hover:text-slate-700 transition"
-                    ></i>
+                    <div class="ml-auto flex items-center gap-4 md:gap-5">
+                        <i
+                            class="pi pi-search cursor-pointer text-slate-500 hover:text-slate-700 transition"
+                        ></i>
+                        <i
+                            class="pi pi-bell cursor-pointer text-slate-500 hover:text-slate-700 transition"
+                        ></i>
 
-                    <div class="relative user-menu">
-                        <div
-                            class="flex items-center gap-2 cursor-pointer"
-                            @click="toggleUserMenu"
-                        >
-                            <img
-                                src="https://i.pravatar.cc/40"
-                                class="w-8 h-8 rounded-full"
-                                alt="Avatar do usuario"
-                            />
-                            <span class="hidden sm:inline">Admin</span>
-                            <i
-                                :class="[
-                                    userMenuOpen
-                                        ? 'pi pi-chevron-up'
-                                        : 'pi pi-chevron-down',
-                                    'text-xs transition-all duration-200',
-                                ]"
-                            ></i>
-                        </div>
-
-                        <div
-                            v-if="userMenuOpen"
-                            class="absolute right-0 mt-4 w-72 bg-white shadow-md p-4 z-999 rounded-xl border border-slate-100"
-                        >
-                            <div class="mb-3">
-                                <p class="font-semibold">Admin User</p>
-                                <p class="text-sm text-gray-500">
-                                    admin@email.com
-                                </p>
+                        <div class="relative user-menu">
+                            <div
+                                class="flex items-center gap-2 cursor-pointer"
+                                @click="toggleUserMenu"
+                            >
+                                <img
+                                    src="https://i.pravatar.cc/40"
+                                    class="w-8 h-8 rounded-full"
+                                    alt="Avatar do usuario"
+                                />
+                                <span class="hidden sm:inline">Admin</span>
+                                <i
+                                    :class="[
+                                        userMenuOpen
+                                            ? 'pi pi-chevron-up'
+                                            : 'pi pi-chevron-down',
+                                        'text-xs transition-all duration-200',
+                                    ]"
+                                ></i>
                             </div>
 
-                            <div class="flex flex-col gap-1">
-                                <button
-                                    class="flex items-center gap-2 p-2 rounded hover:bg-gray-50"
-                                    type="button"
-                                >
-                                    <i class="pi pi-user"></i>
-                                    <span>Edit profile</span>
-                                </button>
+                            <div
+                                v-if="userMenuOpen"
+                                class="absolute right-0 mt-4 w-72 bg-white shadow-md p-4 z-999 rounded-xl border border-slate-100"
+                            >
+                                <div class="mb-3">
+                                    <p class="font-semibold">Admin User</p>
+                                    <p class="text-sm text-gray-500">
+                                        admin@email.com
+                                    </p>
+                                </div>
 
-                                <button
-                                    class="flex items-center gap-2 p-2 rounded hover:bg-gray-50"
-                                    type="button"
-                                >
-                                    <i class="pi pi-cog"></i>
-                                    <span>Account settings</span>
-                                </button>
+                                <div class="flex flex-col gap-1">
+                                    <button
+                                        class="flex items-center gap-2 p-2 rounded hover:bg-gray-50"
+                                        type="button"
+                                    >
+                                        <i class="pi pi-user"></i>
+                                        <span>Edit profile</span>
+                                    </button>
+
+                                    <button
+                                        class="flex items-center gap-2 p-2 rounded hover:bg-gray-50"
+                                        type="button"
+                                    >
+                                        <i class="pi pi-cog"></i>
+                                        <span>Account settings</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <main class="flex-1 p-3 sm:p-4 md:p-6">
+            <main
+                :class="[
+                    'flex-1',
+                    props.contentFullWidth ? 'p-0' : 'p-3 sm:p-4 md:p-6',
+                ]"
+            >
                 <div
-                    class="mx-auto max-w-7xl motion-safe:animate-[fade-in_280ms_ease-out]"
+                    :class="[
+                        'motion-safe:animate-[fade-in_280ms_ease-out]',
+                        props.contentFullWidth ? 'w-full' : 'mx-auto max-w-7xl',
+                    ]"
                 >
                     <slot />
                 </div>
@@ -179,6 +193,13 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from "vue";
 import { Link } from "@inertiajs/vue3";
+
+const props = defineProps({
+    contentFullWidth: {
+        type: Boolean,
+        default: false,
+    },
+});
 
 const sidebarOpen = ref(true);
 const sidebarMobileOpen = ref(false);

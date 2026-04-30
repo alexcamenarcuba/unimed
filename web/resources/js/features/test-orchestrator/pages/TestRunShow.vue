@@ -60,7 +60,7 @@
         <template #title>Resultados</template>
         <template #content>
           <DataTable :value="run.results" stripedRows responsiveLayout="scroll">
-            <Column field="test_case.name" header="Cenario" />
+            <Column field="test_case.name" header="Cenário" />
             <Column header="Endpoint">
               <template #body="slotProps">
                 {{ slotProps.data.test_case.endpoint?.method || '-' }} {{ slotProps.data.test_case.endpoint?.path || '-' }}
@@ -135,6 +135,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
+import { useToast } from 'primevue/usetoast'
 import AdminLayout from '../../../layouts/AdminLayout.vue'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
@@ -155,6 +156,7 @@ const props = defineProps({
 
 const generatingPdf = ref(false)
 const rerunning = ref(false)
+const toast = useToast()
 
 async function generatePdf() {
   generatingPdf.value = true
@@ -242,7 +244,12 @@ async function generatePdf() {
     doc.save(filename)
   } catch (e) {
     console.error('Erro ao gerar PDF:', e)
-    alert('Erro ao gerar PDF. Tente novamente.')
+    toast.add({
+      severity: 'error',
+      summary: 'Falha ao gerar PDF',
+      detail: 'Erro ao gerar PDF. Tente novamente.',
+      life: 4500,
+    })
   } finally {
     generatingPdf.value = false
   }

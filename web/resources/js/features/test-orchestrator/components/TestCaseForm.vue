@@ -6,10 +6,13 @@
                 label="Nome do teste"
                 placeholder="Ex: Login com credenciais validas"
             />
-            <BaseInputText
+            <BaseSelect
                 v-model="form.grupo"
                 label="Grupo"
-                placeholder="Ex: Motivo 44 - Óbito"
+                :options="groupOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Selecione um grupo cadastrado"
             />
         </div>
 
@@ -133,6 +136,7 @@
 <script setup>
 import axios from "axios";
 import { computed, ref, onMounted, watch } from "vue";
+import { useToast } from "primevue/usetoast";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import TabView from "primevue/tabview";
@@ -147,6 +151,14 @@ onMounted(() => {
 const props = defineProps({
     suiteId: [Number, String],
     testCase: Object,
+    duplicateSourceCase: {
+        type: Object,
+        default: null,
+    },
+    groups: {
+        type: Array,
+        default: () => [],
+    },
     environments: {
         type: Array,
         default: () => [],
@@ -162,6 +174,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["saved", "cancel"]);
+const toast = useToast();
 
 const targetEnvironments = computed(() => {
     const environments = [
@@ -180,6 +193,13 @@ const endpointOptions = computed(() => {
     return props.endpoints.map((endpoint) => ({
         label: `${endpoint.method} ${endpoint.path} - ${endpoint.name}`,
         value: endpoint.id,
+    }));
+});
+
+const groupOptions = computed(() => {
+    return props.groups.map((group) => ({
+        label: group.name,
+        value: group.name,
     }));
 });
 
@@ -225,23 +245,25 @@ const httpStatusOptions = [
  * Preenche form (edição ou novo)
  */
 function hydrateForm() {
-    if (props.testCase) {
+    const sourceCase = props.testCase ?? props.duplicateSourceCase;
+
+    if (sourceCase) {
         form.value = {
-            name: props.testCase.name,
-            grupo: props.testCase.grupo ?? "",
-            endpoint_id: props.testCase.endpoint_id,
-            expected_status: props.testCase.expected_status ?? 200,
+            name: props.duplicateSourceCase ? `${sourceCase.name} (cópia)` : sourceCase.name,
+            grupo: sourceCase.grupo ?? "",
+            endpoint_id: sourceCase.endpoint_id,
+            expected_status: sourceCase.expected_status ?? 200,
             request_json: JSON.stringify(
-                props.testCase.request_payload ?? {},
+                sourceCase.request_payload ?? {},
                 null,
                 2,
             ),
             expected_json: JSON.stringify(
-                props.testCase.expected_response ?? {},
+                sourceCase.expected_response ?? {},
                 null,
                 2,
             ),
-            variable_overrides: normalizeVariableOverrides(props.testCase.variable_overrides ?? {}),
+            variable_overrides: normalizeVariableOverrides(sourceCase.variable_overrides ?? {}),
             variable_override_json: {},
         };
 
@@ -432,14 +454,24 @@ function insertVariablePlaceholder(variableKey) {
         const requestObject = JSON.parse(form.value.request_json || "{}");
 
         if (!requestObject || Array.isArray(requestObject) || typeof requestObject !== "object") {
-            alert("O request precisa ser um JSON objeto para inserir placeholders automaticamente.");
+            toast.add({
+                severity: "warn",
+                summary: "Formato invalido",
+                detail: "O request precisa ser um JSON objeto para inserir placeholders automaticamente.",
+                life: 4000,
+            });
             return;
         }
 
         requestObject[variableKey] = placeholder;
         form.value.request_json = JSON.stringify(requestObject, null, 2);
     } catch (e) {
-        alert("JSON do request inválido. Corrija o JSON para inserir placeholders automaticamente.");
+        toast.add({
+            severity: "error",
+            summary: "JSON invalido",
+            detail: "Corrija o JSON do request para inserir placeholders automaticamente.",
+            life: 4500,
+        });
     }
 }
 
@@ -465,7 +497,12 @@ async function save() {
 
         emit("saved");
     } catch (e) {
-        alert("JSON inválido ou erro ao salvar");
+        toast.add({
+            severity: "error",
+            summary: "Falha ao salvar cenario",
+            detail: "JSON invalido ou erro ao salvar.",
+            life: 4500,
+        });
     }
 }
 
