@@ -319,7 +319,7 @@ class TestSuiteController extends Controller
 
     public function show(ApiTestSuite $suite)
     {
-        $suite->load('endpoints.testCases', 'environments', 'testCaseGroups');
+        $suite->load('endpoints.testCases.caseGroup', 'environments', 'testCaseGroups');
         $environments = $suite->environments->sortBy('created_at')->values();
 
         $resultCaseForeignKey = Schema::hasColumn('api_test_results', 'test_case_id')
@@ -384,6 +384,7 @@ class TestSuiteController extends Controller
                     : $executedResults->every(function ($item) {
                         return $item['last_result'] === true;
                     });
+                $case->grupo = $case->caseGroup?->name;
                 $case->endpoint = "{$endpoint->method} {$endpoint->path}";
                 $case->endpoint_id = $endpoint->id;
             });
@@ -515,6 +516,7 @@ class TestSuiteController extends Controller
 
         if (!empty($cloneFrom)) {
             $duplicateSource = ApiTestCase::query()
+                ->with('caseGroup')
                 ->whereKey($cloneFrom)
                 ->whereHas('endpoint', function ($query) use ($suite) {
                     $query->where('suite_id', $suite->id);
@@ -528,7 +530,8 @@ class TestSuiteController extends Controller
             'duplicateSourceCase' => $duplicateSource ? [
                 'id'                => $duplicateSource->id,
                 'name'              => $duplicateSource->name,
-                'grupo'             => $duplicateSource->grupo,
+                'group_id'          => $duplicateSource->case_group_id,
+                'grupo'             => $duplicateSource->caseGroup?->name,
                 'endpoint_id'       => $duplicateSource->endpoint_id,
                 'expected_status'   => $duplicateSource->expected_status,
                 'request_payload'   => $duplicateSource->request_payload,
@@ -548,13 +551,25 @@ class TestSuiteController extends Controller
 
     public function editCase(ApiTestSuite $suite, ApiTestCase $case)
     {
+        $case->load('caseGroup');
+
         if ($case->endpoint->suite_id !== $suite->id) {
             abort(404);
         }
 
         return Inertia::render('test-orchestrator/pages/TestCaseFormPage', [
             'suiteId' => $suite->id,
-            'testCase' => $case,
+            'testCase' => [
+                'id' => $case->id,
+                'name' => $case->name,
+                'group_id' => $case->case_group_id,
+                'grupo' => $case->caseGroup?->name,
+                'endpoint_id' => $case->endpoint_id,
+                'expected_status' => $case->expected_status,
+                'request_payload' => $case->request_payload,
+                'expected_response' => $case->expected_response,
+                'variable_overrides' => $case->variable_overrides,
+            ],
             'environments' => $suite->environments()
                 ->orderBy('created_at')
                 ->get(['id', 'name']),
@@ -575,8 +590,11 @@ class TestSuiteController extends Controller
             'request_json' => 'nullable|array',
             'expected_json' => 'nullable|array',
             'variable_overrides' => 'nullable|array',
+            'group_id' => 'nullable|uuid|exists:api_test_case_groups,id',
             'grupo' => 'nullable|string|max:255',
         ]);
+
+        $groupId = $this->resolveCaseGroupId($suite, $validated);
 
         $endpoint = Endpoint::where('suite_id', $suite->id)
             ->where('id', $validated['endpoint_id'])
@@ -584,7 +602,7 @@ class TestSuiteController extends Controller
 
         $endpoint->testCases()->create([
             'name'              => $validated['name'],
-            'grupo'             => $validated['grupo'] ?? null,
+            'case_group_id'     => $groupId,
             'request_payload'   => $validated['request_json'] ?? null,
             'variable_overrides' => $this->sanitizeVariableOverrides($validated['variable_overrides'] ?? []),
             'expected_response' => $validated['expected_json'] ?? null,
@@ -607,8 +625,11 @@ class TestSuiteController extends Controller
             'request_json' => 'nullable|array',
             'expected_json' => 'nullable|array',
             'variable_overrides' => 'nullable|array',
+            'group_id' => 'nullable|uuid|exists:api_test_case_groups,id',
             'grupo' => 'nullable|string|max:255',
         ]);
+
+        $groupId = $this->resolveCaseGroupId($suite, $validated);
 
         Endpoint::where('suite_id', $suite->id)
             ->where('id', $validated['endpoint_id'])
@@ -617,7 +638,7 @@ class TestSuiteController extends Controller
         $apiCase->update([
             'endpoint_id'       => $validated['endpoint_id'],
             'name'              => $validated['name'],
-            'grupo'             => $validated['grupo'] ?? null,
+            'case_group_id'     => $groupId,
             'request_payload'   => $validated['request_json'] ?? null,
             'variable_overrides' => $this->sanitizeVariableOverrides($validated['variable_overrides'] ?? []),
             'expected_response' => $validated['expected_json'] ?? null,
@@ -699,6 +720,35 @@ class TestSuiteController extends Controller
         }
 
         return $normalizedUrl . '/' . ltrim($normalizedBasePath, '/');
+    }
+
+    private function resolveCaseGroupId(ApiTestSuite $suite, array $validated): ?string
+    {
+        $groupId = $validated['group_id'] ?? null;
+
+        if (!empty($groupId)) {
+            $existsInSuite = $suite->testCaseGroups()
+                ->where('id', $groupId)
+                ->exists();
+
+            if (!$existsInSuite) {
+                throw ValidationException::withMessages([
+                    'group_id' => 'Grupo inválido para esta suite.',
+                ]);
+            }
+
+            return $groupId;
+        }
+
+        $groupName = trim((string) ($validated['grupo'] ?? ''));
+
+        if ($groupName === '') {
+            return null;
+        }
+
+        return $suite->testCaseGroups()
+            ->firstOrCreate(['name' => $groupName])
+            ->id;
     }
 
     private function sanitizeVariableOverrides(array $overrides): array

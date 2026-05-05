@@ -1,2 +1,12 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+	html,
+	body,
+	#app {
+		@apply min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+	}
+}

@@ -68,24 +68,44 @@
 
     <div class="px-3 pb-4 sm:px-4 md:px-6">
         <!-- TABELA -->
-        <div class="overflow-x-auto border rounded-lg">
-            <TestCaseTable
-                :cases="suite.cases"
-                :environments="environments"
-                v-model:selectedCaseIds="selectedCaseIds"
-                @edit="openEdit"
-                @duplicate="duplicateCase"
-                @edit-endpoint="openEditEndpoint"
-            />
+        <div class="border rounded-lg">
+            <button
+                type="button"
+                class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+                @click="showCases = !showCases"
+            >
+                <div class="text-left">
+                    <h2 class="text-base font-semibold">Cenários de Teste</h2>
+                    <p class="text-xs text-gray-400">{{ suite.cases?.length ?? 0 }} cenário(s) cadastrado(s).</p>
+                </div>
+                <i :class="showCases ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="text-gray-400 text-sm" />
+            </button>
+
+            <div v-if="showCases" class="border-t overflow-x-auto">
+                <TestCaseTable
+                    :cases="suite.cases"
+                    :environments="environments"
+                    v-model:selectedCaseIds="selectedCaseIds"
+                    @edit="openEdit"
+                    @duplicate="duplicateCase"
+                    @edit-endpoint="openEditEndpoint"
+                />
+            </div>
         </div>
 
-        <div class="mt-6 border rounded-lg p-4 flex flex-col gap-4">
-            <div>
-                <h2 class="text-lg font-semibold">Grupos de Cenário</h2>
-                <p class="text-sm text-gray-500">
-                    Cadastre grupos reutilizáveis para não repetir textos como "Regras Gerais - Campos Obrigatórios".
-                </p>
-            </div>
+        <div class="mt-6 border rounded-lg">
+            <button
+                type="button"
+                class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+                @click="showGroups = !showGroups"
+            >
+                <div class="text-left">
+                    <h2 class="text-base font-semibold">Grupos de Cenário</h2>
+                    <p class="text-xs text-gray-400">Gerencie grupos reutilizáveis para organizar os cenários.</p>
+                </div>
+                <i :class="showGroups ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="text-gray-400 text-sm" />
+            </button>
+            <div v-if="showGroups" class="p-4 border-t flex flex-col gap-4">
 
             <div class="flex flex-col md:flex-row gap-3 md:items-end">
                 <div class="flex-1">
@@ -103,7 +123,7 @@
                 />
             </div>
 
-            <DataTable :value="groups" stripedRows size="small">
+                <DataTable :value="groups" stripedRows size="small">
                 <Column field="name" header="Grupo" />
                 <Column header="Ações" style="width: 90px">
                     <template #body="slotProps">
@@ -119,11 +139,23 @@
                 <template #empty>
                     <p class="text-center text-gray-400 py-4 text-sm">Nenhum grupo cadastrado.</p>
                 </template>
-            </DataTable>
+                </DataTable>
+            </div>
         </div>
 
-        <div class="mt-6">
-            <h2 class="text-lg font-semibold mb-2">Ambientes</h2>
+        <div class="mt-6 border rounded-lg">
+            <button
+                type="button"
+                class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+                @click="showEnvironments = !showEnvironments"
+            >
+                <div class="text-left">
+                    <h2 class="text-base font-semibold">Ambientes</h2>
+                    <p class="text-xs text-gray-400">{{ environments.length }} ambiente(s) configurado(s) para esta suite.</p>
+                </div>
+                <i :class="showEnvironments ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" class="text-gray-400 text-sm" />
+            </button>
+            <div v-if="showEnvironments" class="border-t">
             <DataTable :value="environments" stripedRows>
                 <Column field="name" header="Nome" />
                 <Column field="base_url" header="Base URL" />
@@ -162,6 +194,7 @@
                     </template>
                 </Column>
             </DataTable>
+            </div>
         </div>
     </div>
     </AdminLayout>
@@ -197,6 +230,9 @@ const selectedCaseIds = ref([])
 const allCaseIds = computed(() => (props.suite?.cases ?? []).map((testCase) => testCase.id))
 const newGroupName = ref('')
 const savingGroup = ref(false)
+const showCases = ref(true)
+const showGroups = ref(false)
+const showEnvironments = ref(false)
 
 const toast = useToast()
 const confirm = useConfirm()

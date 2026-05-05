@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 class ApiTestCase extends Model
 {
     use HasUuids;
+
     protected $fillable = [
         'endpoint_id',
+        'case_group_id',
         'name',
-        'grupo',
         'request_payload',
         'variable_overrides',
         'expected_response',
@@ -28,5 +29,10 @@ class ApiTestCase extends Model
     public function endpoint()
     {
         return $this->belongsTo(Endpoint::class, 'endpoint_id');
+    }
+
+    public function caseGroup()
+    {
+        return $this->belongsTo(ApiTestCaseGroup::class, 'case_group_id');
     }
 }

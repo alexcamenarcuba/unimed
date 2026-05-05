@@ -43,5 +43,7 @@ Route::prefix('test-runs')->group(function () {
 Route::prefix('tickets')->group(function () {
     Route::get('/', [AzureController::class, 'dashboard']);
     Route::get('/work-items', [AzureController::class, 'workItems']);
+    Route::get('/requirements', [AzureController::class, 'requirementsDashboard']);
+    Route::get('/requirements/work-items', [AzureController::class, 'requirementsWorkItems']);
     Route::get('/debug-fields', [AzureController::class, 'debugFields']);
 });

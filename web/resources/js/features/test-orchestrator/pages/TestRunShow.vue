@@ -59,7 +59,20 @@
       <Card>
         <template #title>Resultados</template>
         <template #content>
-          <DataTable :value="run.results" stripedRows responsiveLayout="scroll">
+          <DataTable
+            :value="resultsWithGroup"
+            stripedRows
+            responsiveLayout="scroll"
+            rowGroupMode="subheader"
+            groupRowsBy="_group_name"
+            sortField="_group_name"
+            :sortOrder="1"
+          >
+            <template #groupheader="slotProps">
+              <span class="font-bold text-sm text-green-700 px-1">
+                <i class="pi pi-folder-open mr-2" />{{ slotProps.data._group_name }}
+              </span>
+            </template>
             <Column field="test_case.name" header="Cenário" />
             <Column header="Endpoint">
               <template #body="slotProps">
@@ -71,7 +84,6 @@
                 {{ slotProps.data.environment?.name || 'Base URL da Suite' }}
               </template>
             </Column>
-            
             <Column field="status_received" header="HTTP" />
             <Column header="Status">
               <template #body="slotProps">
@@ -187,58 +199,75 @@ async function generatePdf() {
     doc.setFont('helvetica', 'bold')
     doc.text(`Total: ${total}   Passaram: ${passed}   Falharam: ${failed}`, 14, 44)
 
-    // Tabela de resultados
-    const rows = props.run.results.map((result) => {
-      const method = result.test_case?.endpoint?.method || '-'
-      const path = result.test_case?.endpoint?.path || '-'
-      const ambiente = result.environment?.name || 'Base URL da Suite'
-      const status = result.passed ? 'PASSOU' : 'FALHOU'
-      const httpCode = result.status_received ?? '-'
-      const request = result.request_payload != null
-        ? JSON.stringify(result.request_payload, null, 2)
-        : '(não registrado)'
-      const response = result.response_body != null
-        ? JSON.stringify(result.response_body, null, 2)
-        : '(sem resposta)'
+    // Blocos de resultado por cenário
+    let currentY = 50
 
-      return [
-        result.test_case?.name || '-',
-        `${method} ${path}`,
-        ambiente,
-        String(httpCode),
-        status,
-        request,
-        response,
-      ]
-    })
+    // Agrupar resultados por grupo
+    const groups = {}
+    for (const result of props.run.results) {
+      const groupName = result.test_case?.case_group?.name || 'Sem Grupo'
+      if (!groups[groupName]) groups[groupName] = []
+      groups[groupName].push(result)
+    }
 
-    autoTable(doc, {
-      startY: 50,
-      head: [['Cenário', 'Endpoint', 'Ambiente', 'HTTP Code', 'Status', 'Request Enviado', 'Response Recebido']],
-      body: rows,
-      styles: { fontSize: 7, cellPadding: 2, overflow: 'linebreak', valign: 'top' },
-      headStyles: { fillColor: [30, 150, 100], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 60, font: 'courier' },
-        6: { cellWidth: 60, font: 'courier' },
-      },
-      didParseCell(data) {
-        if (data.column.index === 4) {
-          if (data.cell.raw === 'PASSOU') {
-            data.cell.styles.textColor = [22, 163, 74]
-            data.cell.styles.fontStyle = 'bold'
-          } else if (data.cell.raw === 'FALHOU') {
-            data.cell.styles.textColor = [220, 38, 38]
-            data.cell.styles.fontStyle = 'bold'
-          }
+    for (const [groupName, groupResults] of Object.entries(groups)) {
+      // Cabeçalho do grupo
+      autoTable(doc, {
+        startY: currentY,
+        body: [[{ content: `GRUPO : ${groupName}`, colSpan: 2, styles: { fontStyle: 'bold', fontSize: 9, fillColor: [30, 150, 100], textColor: 255 } }]],
+        theme: 'grid',
+        styles: { cellPadding: 3 },
+        columnStyles: { 0: { cellWidth: 135 }, 1: { cellWidth: 135 } },
+        margin: { left: 14, right: 14 },
+      })
+      currentY = doc.lastAutoTable.finalY + 2
+
+      for (const result of groupResults) {
+        const cenario = result.test_case?.name || '-'
+        const method = result.test_case?.endpoint?.method || '-'
+        const path = result.test_case?.endpoint?.path || '-'
+        const ambiente = result.environment?.name || 'Base URL da Suite'
+        const status = result.passed ? 'PASSOU' : 'FALHOU'
+        const httpCode = String(result.status_received ?? '-')
+        const request = result.request_payload != null
+          ? JSON.stringify(result.request_payload, null, 2)
+          : '(não registrado)'
+        const response = result.response_body != null
+          ? JSON.stringify(result.response_body, null, 2)
+          : '(sem resposta)'
+        const statusColor = result.passed ? [22, 163, 74] : [220, 38, 38]
+
+        autoTable(doc, {
+          startY: currentY,
+          body: [
+            [{ content: `CENÁRIO : ${cenario}`, colSpan: 2, styles: { fontStyle: 'bold', fontSize: 8 } }],
+            [{ content: `ENDPOINT : ${method} ${path}`, colSpan: 2, styles: { fontSize: 8 } }],
+            [{ content: `AMBIENTE : ${ambiente}`, colSpan: 2, styles: { fontSize: 8 } }],
+            [
+              { content: `HTTP CODE RETORNO : ${httpCode}`, styles: { fontSize: 8 } },
+              { content: `STATUS : ${status}`, styles: { fontSize: 8, fontStyle: 'bold', textColor: statusColor } },
+            ],
+            [{ content: 'REQUEST ENVIADO', colSpan: 2, styles: { fontStyle: 'bold', fontSize: 8, fillColor: [240, 240, 240] } }],
+            [{ content: request, colSpan: 2, styles: { fontSize: 7, font: 'courier', overflow: 'linebreak' } }],
+            [{ content: 'RESPONSE RECEBIDO', colSpan: 2, styles: { fontStyle: 'bold', fontSize: 8, fillColor: [240, 240, 240] } }],
+            [{ content: response, colSpan: 2, styles: { fontSize: 7, font: 'courier', overflow: 'linebreak' } }],
+          ],
+          theme: 'grid',
+          styles: { cellPadding: 2, valign: 'top' },
+          columnStyles: { 0: { cellWidth: 135 }, 1: { cellWidth: 135 } },
+          margin: { left: 14, right: 14 },
+        })
+
+        currentY = doc.lastAutoTable.finalY + 4
+
+        if (currentY > doc.internal.pageSize.height - 30) {
+          doc.addPage()
+          currentY = 14
         }
-      },
-    })
+      }
+
+      currentY += 4
+    }
 
     const filename = `relatorio-execucao-${props.run.id.substring(0, 8)}.pdf`
     doc.save(filename)
@@ -260,6 +289,13 @@ const selectedResult = ref(null)
 
 const passedCount = computed(() =>
   props.run.results.filter((r) => r.passed).length
+)
+
+const resultsWithGroup = computed(() =>
+  props.run.results.map((r) => ({
+    ...r,
+    _group_name: r.test_case?.case_group?.name || 'Sem Grupo',
+  }))
 )
 
 const failedCount = computed(() =>

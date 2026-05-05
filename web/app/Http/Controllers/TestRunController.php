@@ -139,7 +139,8 @@ class TestRunController extends Controller
         $run->load([
             'suite',
             'results.environment',
-            'results.testCase.endpoint'
+            'results.testCase.endpoint',
+            'results.testCase.caseGroup',
         ]);
 
         return Inertia::render('test-orchestrator/pages/TestRunShow', [

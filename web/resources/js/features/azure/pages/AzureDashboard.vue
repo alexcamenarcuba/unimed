@@ -4,7 +4,7 @@
       <!-- HEADER -->
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">Chamados Azure DevOps</h1>
+          <h1 class="text-2xl font-bold text-slate-800">{{ pageTitle }}</h1>
           <p class="text-sm text-slate-500 mt-1">Itens atribuídos a você · atualizado {{ lastUpdated }}</p>
         </div>
         <Button
@@ -134,20 +134,7 @@
               size="small"
               showClear
             />
-          </div>
-          <div class="min-w-40">
-            <label class="block text-xs text-slate-500 mb-1">Sprint</label>
-            <Select
-              v-model="filters.sprint"
-              :options="sprintOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Todos"
-              class="w-full"
-              size="small"
-              showClear
-            />
-          </div>
+          </div>          
           <div class="min-w-40">
             <label class="block text-xs text-slate-500 mb-1">Solicitante</label>
             <Select
@@ -164,6 +151,16 @@
           <div class="flex items-center gap-2 pb-0.5">
             <Checkbox v-model="filters.onlyOverdue" inputId="overdue-filter" binary />
             <label for="overdue-filter" class="text-sm text-slate-600 cursor-pointer select-none">Só atrasados</label>
+          </div>
+          <div class="ml-auto">
+            <Button
+              label="Limpar filtros"
+              icon="pi pi-times"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="clearFilters"
+            />
           </div>
         </div>
 
@@ -222,12 +219,6 @@
               </template>
             </Column>
 
-            <Column field="priority" header="P" sortable style="width: 50px">
-              <template #body="slot">
-                <span class="text-xs font-bold" :class="priorityColor(slot.data.priority)">{{ slot.data.priority || '-' }}</span>
-              </template>
-            </Column>
-
             <Column field="due_date" header="Prazo" sortable style="width: 100px">
               <template #body="slot">
                 <span v-if="slot.data.due_date" class="text-xs" :class="slot.data.is_overdue ? 'text-red-600 font-semibold' : 'text-slate-600'">
@@ -267,6 +258,19 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Tag from 'primevue/tag'
 
+const props = defineProps({
+  title: {
+    type: String,
+    default: 'Chamados Azure DevOps',
+  },
+  workItemsEndpoint: {
+    type: String,
+    default: '/tickets/work-items',
+  },
+})
+
+const pageTitle = computed(() => props.title)
+
 const items = ref([])
 const loading = ref(false)
 const error = ref(null)
@@ -281,12 +285,23 @@ const filters = ref({
   onlyOverdue: false,
 })
 
+function clearFilters() {
+  filters.value = {
+    search: '',
+    state: null,
+    type: null,
+    sprint: null,
+    solicitante: null,
+    onlyOverdue: false,
+  }
+}
+
 async function load(forceRefresh = false) {
   loading.value = true
   error.value = null
 
   try {
-    const { data } = await axios.get('/tickets/work-items', {
+    const { data } = await axios.get(props.workItemsEndpoint, {
       params: forceRefresh ? { refresh: 1 } : {},
     })
     items.value = data

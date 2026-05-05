@@ -6,6 +6,10 @@
     groupRowsBy="grupo"
     :sortField="'grupo'"
     :sortOrder="1"
+    paginator
+    :rows="10"
+    :rowsPerPageOptions="[10, 20, 50]"
+    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
   >
     <template #groupheader="slot">
       <span class="text-sm font-semibold text-gray-600">
@@ -26,6 +30,15 @@
           :checked="selectedCaseIds.includes(slot.data.id)"
           @change="toggleCaseSelection(slot.data.id, $event)"
         >
+      </template>
+    </Column>
+    <Column header="Ações">
+      <template #body="slot">
+        <div class="flex">
+          <Button icon="pi pi-pencil" text @click="emit('edit', slot.data)" />
+          <Button icon="pi pi-copy" text severity="secondary" @click="emit('duplicate', slot.data)" />
+          <Button icon="pi pi-trash" severity="danger" text />
+        </div>
       </template>
     </Column>
     <Column field="name" header="Nome" />
@@ -91,15 +104,6 @@
           <span class="text-xs text-gray-500">
             {{ slot.data.passed_environments || 0 }} OK / {{ slot.data.failed_environments || 0 }} falha
           </span>
-        </div>
-      </template>
-    </Column>
-    <Column header="Ações">
-      <template #body="slot">
-        <div class="flex gap-2">
-          <Button icon="pi pi-pencil" text @click="emit('edit', slot.data)" />
-          <Button icon="pi pi-copy" text severity="secondary" @click="emit('duplicate', slot.data)" />
-          <Button icon="pi pi-trash" severity="danger" text />
         </div>
       </template>
     </Column>

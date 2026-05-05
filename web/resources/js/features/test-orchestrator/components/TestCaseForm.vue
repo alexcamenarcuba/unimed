@@ -7,7 +7,7 @@
                 placeholder="Ex: Login com credenciais validas"
             />
             <BaseSelect
-                v-model="form.grupo"
+                v-model="form.group_id"
                 label="Grupo"
                 :options="groupOptions"
                 optionLabel="label"
@@ -199,13 +199,26 @@ const endpointOptions = computed(() => {
 const groupOptions = computed(() => {
     return props.groups.map((group) => ({
         label: group.name,
-        value: group.name,
+        value: group.id,
     }));
 });
 
+function resolveGroupId(sourceCase) {
+    if (sourceCase?.group_id) {
+        return sourceCase.group_id;
+    }
+
+    if (!sourceCase?.grupo) {
+        return null;
+    }
+
+    const group = props.groups.find((item) => item.name === sourceCase.grupo);
+    return group?.id ?? null;
+}
+
 const form = ref({
     name: "",
-    grupo: "",
+    group_id: null,
     endpoint_id: null,
     expected_status: 200,
     request_json: "",
@@ -250,7 +263,7 @@ function hydrateForm() {
     if (sourceCase) {
         form.value = {
             name: props.duplicateSourceCase ? `${sourceCase.name} (cópia)` : sourceCase.name,
-            grupo: sourceCase.grupo ?? "",
+            group_id: resolveGroupId(sourceCase),
             endpoint_id: sourceCase.endpoint_id,
             expected_status: sourceCase.expected_status ?? 200,
             request_json: JSON.stringify(
@@ -276,7 +289,7 @@ function hydrateForm() {
 function resetForm() {
     form.value = {
         name: "",
-        grupo: "",
+        group_id: null,
         endpoint_id: props.initialEndpointId,
         expected_status: 200,
         request_json: "",
@@ -481,7 +494,7 @@ async function save() {
 
         const payload = {
             name: form.value.name,
-            grupo: form.value.grupo || null,
+            group_id: form.value.group_id || null,
             endpoint_id: form.value.endpoint_id,
             expected_status: form.value.expected_status,
             request_json: JSON.parse(form.value.request_json || "{}"),
