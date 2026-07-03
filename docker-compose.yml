@@ -10,11 +10,9 @@ services:
     user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./web:/var/www
-      - /var/www/vendor
-      - /var/www/node_modules
-    ports:
-      - "8000:8000"
-      - "5173:5173"
+      #- /var/www/vendor
+      #- /var/www/node_modules
+    
     environment:
         APP_ENV: local
         APP_DEBUG: "true"
@@ -22,7 +20,6 @@ services:
         NPM_CONFIG_CACHE: /tmp/.npm
         COMPOSER_HOME: /tmp/.composer
     
-
     networks:
       - proxy
     labels:

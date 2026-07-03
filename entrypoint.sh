@@ -7,10 +7,8 @@ cd /var/www
 echo "Installing Composer dependencies..."
 composer install --no-interaction
 
-if [ ! -d node_modules ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
-    echo "Installing Node dependencies..."
-    npm install
-fi
+echo "Installing Node dependencies..."
+npm ci --no-audit --no-fund
 
 # Inicia Vite em background
 echo "Starting Vite dev server..."

@@ -463,6 +463,11 @@ function markEmptyObjects(value) {
 function insertVariablePlaceholder(variableKey) {
     const placeholder = `{{${variableKey}}}`;
 
+    if (!form.value.request_json || !form.value.request_json.trim()) {
+        form.value.request_json = placeholder;
+        return;
+    }
+
     try {
         const requestObject = JSON.parse(form.value.request_json || "{}");
 
@@ -497,11 +502,10 @@ async function save() {
             group_id: form.value.group_id || null,
             endpoint_id: form.value.endpoint_id,
             expected_status: form.value.expected_status,
-            request_json: JSON.parse(form.value.request_json || "{}"),
+            request_json: parseRequestPayload(form.value.request_json),
             expected_json: JSON.parse(form.value.expected_json || "{}"),
             variable_overrides: filteredOverrides,
         };
-
         if (props.testCase) {
             await axios.put( `/test-suites/${props.suiteId}/cases/${props.testCase.id}`, payload);
         } else {
@@ -521,5 +525,20 @@ async function save() {
 
 function close() {
     emit("cancel");
+}
+
+function parseRequestPayload(rawPayload) {
+    const input = String(rawPayload ?? "").trim();
+
+    if (input === "") {
+        return {};
+    }
+
+    // Permite payload raiz como placeholder: {{minha_variavel}}
+    if (/^\{\{\s*[a-zA-Z0-9_.-]+\s*\}\}$/.test(input)) {
+        return input;
+    }
+
+    return JSON.parse(input);
 }
 </script>

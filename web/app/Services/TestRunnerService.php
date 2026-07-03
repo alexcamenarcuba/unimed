@@ -462,7 +462,13 @@ class TestRunnerService
         $dictionary = [];
 
         foreach (($variables ?? []) as $item) {
-            if (!is_array($item) || empty($item['key'])) {
+            if (!is_array($item) || !array_key_exists('key', $item)) {
+                continue;
+            }
+
+            $key = trim((string) $item['key']);
+
+            if ($key === '') {
                 continue;
             }
 
@@ -473,14 +479,14 @@ class TestRunnerService
             }
 
             if (array_key_exists($environmentId, $values)) {
-                $dictionary[$item['key']] = $this->normalizeScalarLiterals(
+                $dictionary[$key] = $this->normalizeScalarLiterals(
                     $this->restoreEmptyObjects($values[$environmentId])
                 );
                 continue;
             }
 
             if (array_key_exists('__default', $values)) {
-                $dictionary[$item['key']] = $this->normalizeScalarLiterals(
+                $dictionary[$key] = $this->normalizeScalarLiterals(
                     $this->restoreEmptyObjects($values['__default'])
                 );
             }
@@ -545,7 +551,24 @@ class TestRunnerService
             $result = [];
 
             foreach ($value as $key => $item) {
-                $result[$key] = $this->replacePlaceholders($item, $dictionary);
+                $resolvedItem = $this->replacePlaceholders($item, $dictionary);
+
+                // Compatibilidade: permite usar {} ou [] no payload para variavel de objeto/array,
+                // desde que a chave do campo seja igual a chave da variavel cadastrada.
+                if (
+                    is_string($key)
+                    && $this->isEmptyStructuredValue($item)
+                    && array_key_exists(trim($key), $dictionary)
+                ) {
+                    $candidate = $dictionary[trim($key)];
+
+                    if (is_array($candidate) || is_object($candidate)) {
+                        $result[$key] = $candidate;
+                        continue;
+                    }
+                }
+
+                $result[$key] = $resolvedItem;
             }
 
             return $result;
@@ -555,12 +578,12 @@ class TestRunnerService
             return $value;
         }
 
-        if (!preg_match_all('/\{\{\s*([a-zA-Z0-9_\.-]+)\s*\}\}/', $value, $matches)) {
+        if (!preg_match_all('/\{\{\s*([^{}]+?)\s*\}\}/', $value, $matches)) {
             return $value;
         }
 
         if (count($matches[0]) === 1 && trim($value) === $matches[0][0]) {
-            $key = $matches[1][0];
+            $key = trim($matches[1][0]);
 
             if (array_key_exists($key, $dictionary)) {
                 return $dictionary[$key];
@@ -572,6 +595,8 @@ class TestRunnerService
         $replaced = $value;
 
         foreach ($matches[1] as $index => $key) {
+            $key = trim($key);
+
             if (!array_key_exists($key, $dictionary)) {
                 continue;
             }
@@ -586,5 +611,10 @@ class TestRunnerService
         }
 
         return $replaced;
+    }
+
+    private function isEmptyStructuredValue($value): bool
+    {
+        return is_array($value) && count($value) === 0;
     }
 }

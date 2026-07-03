@@ -587,7 +587,17 @@ class TestSuiteController extends Controller
             'name' => 'required|string|max:255',
             'endpoint_id' => 'required|uuid|exists:endpoints,id',
             'expected_status' => 'nullable|integer',
-            'request_json' => 'nullable|array',
+            'request_json' => ['nullable', function ($attribute, $value, $fail) {
+                if (is_array($value) || $value === null) {
+                    return;
+                }
+
+                if (is_string($value) && preg_match('/^\{\{\s*[a-zA-Z0-9_.-]+\s*\}\}$/', trim($value))) {
+                    return;
+                }
+
+                $fail('O request_json deve ser um JSON (objeto/array) ou um placeholder no formato {{variavel}}.');
+            }],
             'expected_json' => 'nullable|array',
             'variable_overrides' => 'nullable|array',
             'group_id' => 'nullable|uuid|exists:api_test_case_groups,id',
@@ -599,6 +609,8 @@ class TestSuiteController extends Controller
         $endpoint = Endpoint::where('suite_id', $suite->id)
             ->where('id', $validated['endpoint_id'])
             ->firstOrFail();
+
+        $this->validateRequestPlaceholders($validated['request_json'] ?? null, $endpoint);
 
         $endpoint->testCases()->create([
             'name'              => $validated['name'],
@@ -622,7 +634,17 @@ class TestSuiteController extends Controller
             'name' => 'required|string|max:255',
             'endpoint_id' => 'required|uuid|exists:endpoints,id',
             'expected_status' => 'nullable|integer',
-            'request_json' => 'nullable|array',
+            'request_json' => ['nullable', function ($attribute, $value, $fail) {
+                if (is_array($value) || $value === null) {
+                    return;
+                }
+
+                if (is_string($value) && preg_match('/^\{\{\s*[a-zA-Z0-9_.-]+\s*\}\}$/', trim($value))) {
+                    return;
+                }
+
+                $fail('O request_json deve ser um JSON (objeto/array) ou um placeholder no formato {{variavel}}.');
+            }],
             'expected_json' => 'nullable|array',
             'variable_overrides' => 'nullable|array',
             'group_id' => 'nullable|uuid|exists:api_test_case_groups,id',
@@ -631,9 +653,11 @@ class TestSuiteController extends Controller
 
         $groupId = $this->resolveCaseGroupId($suite, $validated);
 
-        Endpoint::where('suite_id', $suite->id)
+        $endpoint = Endpoint::where('suite_id', $suite->id)
             ->where('id', $validated['endpoint_id'])
             ->firstOrFail();
+
+        $this->validateRequestPlaceholders($validated['request_json'] ?? null, $endpoint);
 
         $apiCase->update([
             'endpoint_id'       => $validated['endpoint_id'],
@@ -806,7 +830,13 @@ class TestSuiteController extends Controller
         $sanitized = [];
 
         foreach (array_values($variables) as $item) {
-            if (!is_array($item) || empty($item['key'])) {
+            if (!is_array($item) || !array_key_exists('key', $item)) {
+                continue;
+            }
+
+            $key = trim((string) $item['key']);
+
+            if ($key === '') {
                 continue;
             }
 
@@ -820,7 +850,7 @@ class TestSuiteController extends Controller
             }
 
             $sanitized[] = [
-                'key' => $item['key'],
+                'key' => $key,
                 'type' => $type,
                 'values' => $values,
             ];
@@ -873,5 +903,64 @@ class TestSuiteController extends Controller
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i',
             $key
         );
+    }
+
+    private function validateRequestPlaceholders($requestPayload, Endpoint $endpoint): void
+    {
+        $placeholders = $this->extractRequestPlaceholders($requestPayload);
+
+        if (empty($placeholders)) {
+            return;
+        }
+
+        $allowedKeys = collect($endpoint->variables ?? [])
+            ->map(function ($item) {
+                if (!is_array($item) || !array_key_exists('key', $item)) {
+                    return null;
+                }
+
+                $key = trim((string) $item['key']);
+
+                return $key === '' ? null : $key;
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        $invalid = array_values(array_diff($placeholders, $allowedKeys));
+
+        if (empty($invalid)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'request_json' => 'Placeholder(s) nao cadastrado(s) no endpoint: ' . implode(', ', $invalid),
+        ]);
+    }
+
+    private function extractRequestPlaceholders($value): array
+    {
+        if (is_array($value)) {
+            $found = [];
+
+            foreach ($value as $item) {
+                $found = array_merge($found, $this->extractRequestPlaceholders($item));
+            }
+
+            return array_values(array_unique($found));
+        }
+
+        if (!is_string($value)) {
+            return [];
+        }
+
+        if (!preg_match_all('/\{\{\s*([^{}]+?)\s*\}\}/', $value, $matches)) {
+            return [];
+        }
+
+        $keys = array_map(fn($key) => trim($key), $matches[1]);
+        $keys = array_filter($keys, fn($key) => $key !== '');
+
+        return array_values(array_unique($keys));
     }
 }

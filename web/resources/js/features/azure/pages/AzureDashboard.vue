@@ -4,8 +4,8 @@
       <!-- HEADER -->
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-2xl font-bold text-slate-800">{{ pageTitle }}</h1>
-          <p class="text-sm text-slate-500 mt-1">Itens atribuídos a você · atualizado {{ lastUpdated }}</p>
+          <h1 class="text-2xl font-bold text-white">{{ pageTitle }}</h1>
+          <p class="text-sm text-white mt-1">Itens atribuídos a você · atualizado {{ lastUpdated }}</p>
         </div>
         <Button
           label="Atualizar"
@@ -179,7 +179,7 @@
           >
             <Column field="id" header="ID" sortable style="width: 70px">
               <template #body="slot">
-                <a :href="slot.data.url" target="_blank" class="text-blue-600 hover:underline font-mono text-xs">
+                <a :href="slot.data.url" target="_blank" class="text-white hover:underline font-mono text-xs">
                   #{{ slot.data.id }}
                 </a>
               </template>
@@ -189,10 +189,10 @@
               <template #body="slot">
                 <div class="flex items-start gap-2">
                   <div>
-                    <a :href="slot.data.url" target="_blank" class="text-sm font-medium text-slate-800 hover:text-blue-600 hover:underline leading-tight">
+                    <a :href="slot.data.url" target="_blank" class="text-sm font-medium text-white hover:text-white hover:underline leading-tight">
                       {{ slot.data.title }}
                     </a>
-                    <p v-if="slot.data.solicitante" class="text-xs text-slate-400 mt-0.5">Solicitante: {{ slot.data.solicitante }}</p>
+                    <p v-if="slot.data.solicitante" class="text-xs text-white mt-0.5">Solicitante: {{ slot.data.solicitante }}</p>
                   </div>
                   <span v-if="slot.data.is_overdue" class="shrink-0 mt-0.5 inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-medium">
                     <i class="pi pi-clock text-[10px]" /> Atrasado
@@ -215,7 +215,7 @@
 
             <Column field="sprint" header="Sprint" sortable style="width: 130px">
               <template #body="slot">
-                <span class="text-xs text-slate-600">{{ slot.data.sprint || '-' }}</span>
+                <span class="text-xs text-white">{{ slot.data.sprint || '-' }}</span>
               </template>
             </Column>
 
