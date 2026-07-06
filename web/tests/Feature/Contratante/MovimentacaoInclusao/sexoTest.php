@@ -25,8 +25,7 @@ describe('sexo', function () {
 
     it('retorna erro quando sexo com mais de 2 caracteres - caracter especial - uma letra', function () {
         $payload = payloadInclusaoValido();
-        data_set($payload, 'beneficiarios.0.sexo', sexoComTamanho(2));
-
+        data_set($payload, 'beneficiarios.0.sexo', 'MF');
         $response = movimentacaoInclusao(loginContratanteToken(), $payload);
         expect($response->status())->toBe(400)
             ->and($response->json('success'))->toBeFalse()

@@ -33,4 +33,14 @@ describe('cns', function () {
             ->and($response->json('message'))->toBe('Dados inválidos')
             ->and($response->json('errors.beneficiarios[0].cns'))->toContain('Valor inválido');
     });
+
+    it('retorna erro quando cns ja cadastrado', function () {
+        $payload = payloadInclusaoValido();
+        data_set($payload, 'beneficiarios.0.cns', '023365959260006');
+        $response = movimentacaoInclusao(loginContratanteToken(), $payload);
+        expect($response->status())->toBe(400)
+            ->and($response->json('success'))->toBeFalse()
+            ->and($response->json('message'))->toBe('Dados inválidos')
+            ->and($response->json('errors.beneficiarios[0].cns'))->toContain('O CNS informado já está cadastrado em um Beneficiário Ativo no Contrato. ');
+    });
 });
