@@ -5,8 +5,8 @@ return [
     'beneficiarios' => [
         [
             'cpf'                => cpfValidoUnico(),
-            'nome'               => 'Zemira Queiroz',
-            'dataNascimento'     => '2015-02-26',
+            'nome'               => nome(),
+            'dataNascimento'     => date('Y-m-d', strtotime('-30 years')),
             'sexo'               => 'm',
             'cns'                => gerarCNS(),
             'grauDependencia'    => '00',
@@ -15,20 +15,19 @@ return [
             'dataVinculoTitular' => null,
             'inicioVigencia'     => 'especificar_data',
             'dataInicioVigencia' => date('Y-m-d', strtotime('+30 day')),
-            'dataAdmissao'       => date('Y-m-d', strtotime('-1 year')),
+            'dataAdmissao'       => date('Y-m-d', strtotime('-10 days')),
             'numeroMatricula'    => null,
-            'nomeMae'            => 'mae Zemira Queiroz',
-            'nomePai'            => 'pai Zemira Queiroz',
+            'nomeMae'            => 'mae '.nome(),
+            'nomePai'            => 'pai '.nome(),
             'estadoCivil'        => 'casado',
-            'nomeSocial'         => 'Nome Social',
-            'generoSocial'       => 99,
+            'nomeSocial'         => '',
+            'generoSocial'       => '',
             'paisNascimento'     => 32,
             'nacionalidade'      => 'Brasileira',
             'naturalidadeCidade' => 'Curitiba',
             'naturalidadeUF'     => 'PR',
             'raca'               => '1',
-            'escolaridade'       => 12,
-            'profissaoCBO'       => 914110,
+            'profissaoCBO'       => '',
             'emails'    => [['email' => 'zemira@email.com']],
             'enderecos' => [[
                 'tipo'            => 'residencial',
@@ -54,17 +53,7 @@ return [
             'produtos' => [
                 ['codigo' => '1947', 'tipo' => 'assistencial'],
                 ['codigo' => '5042', 'tipo' => 'acessorio'],
-            ],
-            'responsavelLegal' => [
-                'tipo'           => '2',
-                'cpf'            => cpfValidoUnico(),
-                'nome'           => 'Zemira Queiroz',
-                'dataNascimento' => '1985-05-05',
-                'sexo'           => 'F',
-                'generoSocial'   => 1,
-                'email'          => 'zemira@email.com',
-                'celular'        => '11912345678',
-            ],
-        ],
+            ]            
+        ]
     ],
 ];

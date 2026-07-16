@@ -46,8 +46,29 @@ function payloadInclusaoValido(): array
     return require __DIR__ . '/MovimentacaoInclusao/payloads/inclusao_valido.php';
 }
 
+function TitularSemAcessorio(): array
+{
+    return require __DIR__ . '/MovimentacaoInclusao/payloads/umTitularSemAcessorio.php';
+}
+
+function TitularDependente(): array
+{
+    return require __DIR__ . '/MovimentacaoInclusao/payloads/dependenteTitular.php';
+}
+
 function movimentacaoInclusao(string $token, array $payload)
 {
     return contratanteHttp($token)
         ->post('http://crm/api/v1/contratante/movimentacaoInclusao', $payload);
+}
+
+function payloadExclusaoValido41(): array
+{
+    return require __DIR__ . '/MovimentacaoExclusao/payloads/valido41.php';
+}
+    
+function movimentacaoExclusao(string $token, array $payload)
+{
+    return contratanteHttp($token)
+        ->post('http://crm/api/v1/contratante/movimentacaoExclusao', $payload);
 }

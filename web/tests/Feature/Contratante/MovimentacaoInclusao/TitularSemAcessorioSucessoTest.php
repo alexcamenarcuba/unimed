@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Http;
 
 it('cria movimentacao de inclusao com sucesso', function () {
     $token    = loginContratanteToken();
-    $response = movimentacaoInclusao($token, payloadInclusaoValido());
+    $response = movimentacaoInclusao($token, TitularSemAcessorio());
     //$response->dump();
     expect($response->status())->toBe(201)
         ->and($response->json('success'))->toBeTrue()

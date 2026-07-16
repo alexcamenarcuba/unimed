@@ -74,3 +74,8 @@ function nomeComTamanho(int $tamanho): string
 
     return trim(mb_substr($nome, 0, $tamanho));
 }
+
+function nome(): string
+{
+    return  fakerPtBr()->firstName() . ' ' . fakerPtBr()->lastName();
+}
