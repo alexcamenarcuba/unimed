@@ -1,33 +1,33 @@
 <?php 
+$cpfTitular = "051.933.976-20";
 return [
     'nroContrato' => '37451-0-297',
     'beneficiarios' => [
         [
             'cpf'                => cpfValidoUnico(),
             'nome'               => nome(),
-            'dataNascimento'     => '1985-02-26',
+            'dataNascimento'     => date('Y-m-d', strtotime('-30 years')),
             'sexo'               => 'm',
             'cns'                => gerarCNS(),
-            'grauDependencia'    => '00',
+            'grauDependencia'    => '10',
             'tipoDependencia'    => 'normal',
-            'cpfTitular'         => null,
-            'dataVinculoTitular' => null,
+            'cpfTitular'         => $cpfTitular,
+            'dataVinculoTitular' => date('Y-m-d', strtotime('-30 years')),
             'inicioVigencia'     => 'especificar_data',
             'dataInicioVigencia' => date('Y-m-d', strtotime('+30 day')),
-            'dataAdmissao'       => date('Y-m-d', strtotime('-1 year')),
+            'dataAdmissao'       => date('Y-m-d', strtotime('-10 days')),
             'numeroMatricula'    => null,
-            'nomeMae'            => 'mae '.nome(),
-            'nomePai'            => 'pai '.nome(),
-            'estadoCivil'        => 'casado',
+            'nomeMae'            => 'mae dependente '.nome(),
+            'nomePai'            => 'pai dependente '.nome(),
+            'estadoCivil'        => 'solteiro',
             'nomeSocial'         => '',
-            'generoSocial'       => null,
+            'generoSocial'       => '',
             'paisNascimento'     => 32,
             'nacionalidade'      => 'Brasileira',
             'naturalidadeCidade' => 'Curitiba',
             'naturalidadeUF'     => 'PR',
             'raca'               => '1',
-            'escolaridade'       => 12,
-            'profissaoCBO'       => 914110,
+            'profissaoCBO'       => '',
             'emails'    => [['email' => 'zemira@email.com']],
             'enderecos' => [[
                 'tipo'            => 'residencial',
@@ -46,24 +46,14 @@ return [
             'telefones' => [[
                 'tipo'   => 'celular',
                 'classe' => 'residencial',
-                'ddi'    => '+51',
+                'ddi'    => '55',
                 'ddd'    => '11',
                 'numero' => '912345678',
             ]],
             'produtos' => [
                 ['codigo' => '1947', 'tipo' => 'assistencial'],
                 ['codigo' => '5042', 'tipo' => 'acessorio'],
-            ],
-            'responsavelLegal' => [
-                'tipo'           => '2',
-                'cpf'            => cpfValidoUnico(),
-                'nome'           => 'Zemira Queiroz',
-                'dataNascimento' => '1985-05-05',
-                'sexo'           => 'F',
-                'generoSocial'   => 1,
-                'email'          => 'zemira@email.com',
-                'celular'        => '11912345678',
-            ],
-        ],
+            ]            
+        ]
     ],
 ];

@@ -46,7 +46,7 @@ return [
             'telefones' => [[
                 'tipo'   => 'celular',
                 'classe' => 'residencial',
-                'ddi'    => '',
+                'ddi'    => '55',
                 'ddd'    => '11',
                 'numero' => '912345678',
             ]],

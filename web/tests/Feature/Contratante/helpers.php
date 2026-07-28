@@ -53,7 +53,17 @@ function TitularSemAcessorio(): array
 
 function TitularDependente(): array
 {
+    return require __DIR__ . '/MovimentacaoInclusao/payloads/titularDependente.php';
+}
+
+function dependenteTitular(): array
+{
     return require __DIR__ . '/MovimentacaoInclusao/payloads/dependenteTitular.php';
+}
+
+function dependente(): array
+{
+    return require __DIR__ . '/MovimentacaoInclusao/payloads/dependente.php';
 }
 
 function movimentacaoInclusao(string $token, array $payload)

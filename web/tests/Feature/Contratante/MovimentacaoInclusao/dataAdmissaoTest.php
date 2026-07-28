@@ -48,12 +48,11 @@ describe('dataAdmissao', function () {
     it('retorna erro quando dataAdmissao é uma data futura', function () {
         $payload = payloadInclusaoValido();
 
-        $dataAdmissao = date('Y-m-d', strtotime('+10 day'));
+        $dataAdmissao = date('Y-m-d', strtotime('+40 day'));
         data_set($payload, 'beneficiarios.0.dataAdmissao', $dataAdmissao);
 
         // pegue a data de vigência do próprio payload (a que já está lá)
         $dataInicioVigencia = data_get($payload, 'beneficiarios.0.dataInicioVigencia');
-
         $response = movimentacaoInclusao(loginContratanteToken(), $payload);
 
         $dataAdmissaoFormatada = Carbon::parse($dataAdmissao)->format('d/m/Y');

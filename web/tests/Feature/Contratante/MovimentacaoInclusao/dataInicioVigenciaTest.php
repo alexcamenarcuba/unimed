@@ -14,12 +14,12 @@ describe('dataInicioVigencia', function () {
 
     it('retorna erro quando dataInicioVigencia contém numeros', function () {
         $payload = payloadInclusaoValido();
-        data_set($payload, 'beneficiarios.0.dataInicioVigencia', '123456 456 123');
+        data_set($payload, 'beneficiarios.0.dataInicioVigencia', '123456 456 123');        
         $response = movimentacaoInclusao(loginContratanteToken(), $payload);
         expect($response->status())->toBe(400)
             ->and($response->json('success'))->toBeFalse()
             ->and($response->json('message'))->toBe('Dados inválidos')
-            ->and($response->json('errors.beneficiarios[0].dataInicioVigencia'))->toContain('Data inválida.');
+            ->and($response->json('errors.beneficiarios[0].dataInicioVigencia'))->toContain('Data Inicio Vigência inválido.');
     });
 
     it('retorna erro quando data invalida', function () {
@@ -29,7 +29,7 @@ describe('dataInicioVigencia', function () {
         expect($response->status())->toBe(400)
             ->and($response->json('success'))->toBeFalse()
             ->and($response->json('message'))->toBe('Dados inválidos')
-            ->and($response->json('errors.beneficiarios[0].dataInicioVigencia'))->toContain('Data inválida.');
+            ->and($response->json('errors.beneficiarios[0].dataInicioVigencia'))->toContain('Data Inicio Vigência inválido.');
     });
 
     it('retorna erro quando data retroativa', function () {

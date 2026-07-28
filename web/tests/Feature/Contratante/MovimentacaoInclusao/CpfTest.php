@@ -5,6 +5,7 @@ describe('CPF', function () {
         $payload = payloadInclusaoValido();
         data_set($payload, 'beneficiarios.0.cpf', null);
         $response = movimentacaoInclusao(loginContratanteToken(), $payload);
+        
         expect($response->status())->toBe(400)
             ->and($response->json('success'))->toBeFalse()
             ->and($response->json('message'))->toBe('Dados inválidos')
@@ -37,13 +38,12 @@ describe('CPF', function () {
     it('retorna erro quando cpf já está integrado no contrato', function () {
         $payload = payloadInclusaoValido();
         data_set($payload, 'beneficiarios.0.cpf', '560.033.662-49');
-
         $response = movimentacaoInclusao(loginContratanteToken(), $payload);
 
         expect($response->status())->toBe(400)
             ->and($response->json('success'))->toBeFalse()
             ->and($response->json('message'))->toBe('Dados inválidos')
-            ->and($response->json('errors.beneficiarios[0].cpf'))->toContain('Beneficiário já cadastrado no contrato.');
+            ->and($response->json('errors.beneficiarios[0].cpf'))->toContain('Já existe um Beneficiário cadastrado no Contrato vinculado a Movimentação Cadastral com o mesmo CPF informado ');
     });
     //** VERIRICAR DEPOIS */
     /*

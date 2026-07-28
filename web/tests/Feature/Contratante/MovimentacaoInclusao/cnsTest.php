@@ -41,6 +41,6 @@ describe('cns', function () {
         expect($response->status())->toBe(400)
             ->and($response->json('success'))->toBeFalse()
             ->and($response->json('message'))->toBe('Dados inválidos')
-            ->and($response->json('errors.beneficiarios[0].cns'))->toContain('O CNS informado já está cadastrado em um Beneficiário Ativo no Contrato. ');
+            ->and($response->json('errors.beneficiarios[0].cns'))->toContain('O CNS informado já está cadastrado em um Beneficiário Ativo na Movimentação Cadastral.');
     });
 });
